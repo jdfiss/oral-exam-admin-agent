@@ -1,0 +1,129 @@
+{% extends "office_base.html" %}
+{% block title %}流程圖{% endblock %}
+{% block breadcrumb %}流程圖{% endblock %}
+{% block extra_head %}
+<style>
+.flow-legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13px;color:var(--muted);margin-bottom:18px}
+.who{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:2px;white-space:nowrap}
+.who.sys{background:#E6EEEA;color:#2F5449}.who.staff{background:#E8EEF7;color:#2f4f86}
+.who.stu{background:#F3ECF8;color:#6a3f86}.who.prof{background:#fff2d9;color:#7a5010}
+.who.mem{background:#EAF3F7;color:#2b6274}.who.ai{background:#1B2430;color:#fff}
+.flow{list-style:none;margin:0;padding:0}
+.flow-row{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:0 28px;position:relative}
+.flow-main{position:relative;padding:0 0 26px 46px}
+.flow-main:before{content:"";position:absolute;left:15px;top:32px;bottom:0;border-left:2px solid #B9C9C3}
+.flow-row:last-child .flow-main:before{display:none}
+.flow-no{position:absolute;left:0;top:10px;width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px}
+.flow-card{background:#fff;border:1px solid #D8D4C8;border-left:4px solid var(--primary);padding:12px 16px}
+.flow-card h2{font-size:16px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:6px}
+.flow-card p{font-size:13.5px;color:var(--ink)}
+.flow-card .go{display:inline-block;margin-top:8px;font-size:13px;color:var(--primary)}
+.flow-split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.flow-split>div{border:1px dashed #B9C9C3;padding:8px 10px;font-size:13px}
+.flow-split b{display:block;margin-bottom:2px}
+.flow-ex{padding:0 0 26px}
+.flow-ex-title{font-size:12px;font-weight:700;color:#A3460F;margin:10px 0 6px}
+.ex{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;background:#FFF8F4;border:1px solid #F1D3C4;border-left:4px solid #C2622D;padding:8px 12px;margin-bottom:8px;font-size:13px}
+.ex:before{content:"!";grid-row:span 2;width:20px;height:20px;border-radius:50%;background:#C2622D;color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;margin-top:2px}
+.ex b{color:#7a2f0c}
+.ex span a{color:var(--primary)}
+.flow-none{font-size:13px;color:var(--muted);padding-top:14px}
+.flow-anytime{margin-top:10px;border-top:2px solid var(--nav);padding-top:16px}
+.flow-anytime h2{margin-bottom:10px}
+.anytime-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media(max-width:900px){.flow-row{grid-template-columns:1fr}.flow-ex{padding:0 0 22px 46px}.flow-main{padding-bottom:8px}.anytime-grid,.flow-split{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+{% set S, P, ST, PR, M, A = 'sys', 'staff', 'stu', 'prof', 'mem', 'ai' %}
+{% set WHO = {'sys': '系統自動', 'staff': '專員', 'stu': '學生', 'prof': '指導教授', 'mem': '口試委員', 'ai': 'AI'} %}
+{% macro tag(k) %}<span class="who {{ k }}">{{ WHO[k] }}</span>{% endmacro %}
+{% macro link(endpoint, label) %}{% if endpoint %}<a href="{{ url_for(endpoint) }}">{{ label }}</a>{% else %}{{ label }}{% endif %}{% endmacro %}
+
+<div class="page-heading">
+    <div>
+        <h1>流程圖</h1>
+        <p>一學期從頭到尾：左邊是正常流程，右邊是<b style="color:#A3460F">例外</b>和處理方式。點連結直接到該頁。</p>
+    </div>
+</div>
+<div class="flow-legend">誰來做：{{ tag(S) }} {{ tag(P) }} {{ tag(ST) }} {{ tag(PR) }} {{ tag(M) }} {{ tag(A) }}<span>AI 只做判讀與擬稿；寫入、寄信、放行一律由規則或專員決定。</span></div>
+
+{% set steps = [
+  {'title': '設定本期學期與填寫截止日', 'who': [P], 'text': '兩個都設好，學生端才開放填寫。', 'go': ('office_settings_page', '期限設定'),
+   'ex': [('還沒設定', '學生端只顯示「本學期尚未開放填寫」；總覽會警示', 'office_overview', '工作總覽')]},
+  {'title': '學生填寫口試資料（附件3）', 'who': [ST], 'text': '可暫存、截止前可反覆修改。這段期間系統不寄信、不催件。', 'go': None,
+   'ex': [('只有暫存、從未送出', '截止後視為「未填寫」，照常寄補件信', None, '')]},
+  {'title': '上傳附件2，系統自動建檔', 'who': [P, S], 'text': '從 Portal 下載附件2，連同交通費、委員歷史資料共三份上傳；齊了自動建主檔。', 'go': ('office_import', '匯入資料'),
+   'ex': [('自動建檔失敗', '舊主檔保留；到匯入資料看錯誤原因', 'office_import', '匯入資料'),
+          ('學生填寫在附件2 查無', '列為例外交專員', 'office_overview', '工作總覽'),
+          ('附件2 重傳後學生消失', '已寄過補件信的不自動刪，請專員確認', 'office_overview', '工作總覽')]},
+  {'title': '自動檢核、寄補件信、每日催件', 'who': [S, ST], 'text': '學生的問題直接寄補件信；學生重新送出後自動重檢，問題消失才算解決。', 'go': ('office_overview', '工作總覽'),
+   'ex': [('學生沒有信箱', '總覽標「無信箱」，依後備格式寄或由專員聯絡', 'office_overview', '工作總覽'),
+          ('學生要改資料但已鎖住', '學生按「申請異動」或來信 → 案件頁「學生修改權限」由專員決定開放', 'office_mailbox', '來信處理'),
+          ('補件截止仍未完成', '標「逾期未完成」：專員在案件頁用「專員修正」補齊後放行，或對該案開放修改', 'office_overview', '工作總覽')]},
+  {'title': '人工關卡：審核委員資格，按「已處理」放行', 'who': [P], 'text': '每案一次，在補件截止日前完成。碩士委員需助理教授以上、博士需副教授以上。', 'go': ('office_overview', '工作總覽 → 人工關卡'),
+   'ex': [('委員職級不符、人數不足、沿用舊口委', '不擋流程，標出來給專員判斷', 'office_overview', '工作總覽'),
+          ('放行後委員名單變了', '放行自動撤銷，案件回到待放行，要重新放行', 'office_overview', '工作總覽')]},
+  {'title': '寄附件4 給教授、向委員索取撥帳資料', 'who': [S, PR, M], 'text': '', 'split': True, 'go': None,
+   'ex': [('教授回信說資料有錯', 'AI 讀信、擬好修正與回信草稿 → 專員核准 → 只重寄新版給該教授', 'office_mailbox', '來信處理'),
+          ('委員口試前 3 天仍未填', '系統不催委員，列為例外；可現場在附件6 補，事後登錄', 'office_committees', '委員個資'),
+          ('委員改用回信提供資料', '專員在委員個資頁登錄（身分證、帳號輸入兩次）', 'office_committees', '委員個資')]},
+  {'title': '口試前：產生附件4 與交付版附件6', 'who': [P, S], 'text': '交付版附件6 個資留白，交給學生帶去口試，委員在現場填。委員還沒交個資也照樣產出。', 'go': ('office_documents', '文件中心'),
+   'ex': [('案件沒被納入', '產檔結果會列出原因（未放行、仍缺件等）', 'office_documents', '文件中心'),
+          ('產檔失敗', '多半是轉檔環境問題，不是資料問題；找開發團隊', None, '')]},
+  {'title': '口試後：學生交回附件6，專員核對後核撥', 'who': [ST, P], 'text': '登錄委員現場手寫的個資 → 標「已收回（合格）」→ 產生完整版附件6 核撥（只給系辦，不寄出）。', 'go': ('office_documents', '文件中心'),
+   'ex': [('附件6 逾期未交回', '提醒信寄給該場全部口試委員（不寄指導教授）', 'office_documents', '文件中心'),
+          ('附件6 需補正', '登錄「需補正」，補好再標合格；手寫個資沒登錄完不能標合格', 'office_documents', '文件中心')]},
+  {'title': '學期結束：切換到下學期', 'who': [P], 'text': '畫面先列出還沒結案的件數，確認後才切換；舊學期封存，只能查看。', 'go': ('office_archives', '學期封存'),
+   'ex': [('還有未結案件', '切換後系統不再寄信，剩下的由系辦線下處理', 'office_settings_page', '期限設定')]},
+] %}
+
+<ol class="flow">
+{% for s in steps %}
+<li class="flow-row">
+    <div class="flow-main">
+        <span class="flow-no">{{ loop.index }}</span>
+        <div class="flow-card">
+            <h2>{{ s.title }}{% for w in s.who %}{{ tag(w) }}{% endfor %}</h2>
+            {% if s.split %}
+            <div class="flow-split">
+                <div><b>附件4 → 指導教授</b>學生資料齊全就自動寄，供教授核對；教授不用回信、不催。</div>
+                <div><b>索取撥帳資料 → 口試委員</b>放行後寄專屬連結，委員驗證信箱後線上填寫；同一位委員只寄一封。</div>
+            </div>
+            {% else %}<p>{{ s.text }}</p>{% endif %}
+            {% if s.go %}<a class="go" href="{{ url_for(s.go[0]) }}">→ {{ s.go[1] }}</a>{% endif %}
+        </div>
+    </div>
+    <div class="flow-ex">
+        {% if s.ex %}<div class="flow-ex-title">例外</div>{% endif %}
+        {% for title, how, endpoint, label in s.ex %}
+        <div class="ex"><b>{{ title }}</b><span>{{ how }}{% if endpoint %}　→ {{ link(endpoint, label) }}{% endif %}</span></div>
+        {% else %}<p class="flow-none">沒有例外</p>
+        {% endfor %}
+    </div>
+</li>
+{% endfor %}
+</ol>
+
+<section class="flow-anytime">
+    <h2>隨時可能發生</h2>
+    <div class="anytime-grid">
+        <div class="flow-card"><h2>業務信箱來信 {{ tag(A) }}{{ tag(P) }}</h2>
+            <p>AI 辨識寄件者、分類、摘要並擬草稿；學生提問會依案件資料與專員過去的回覆擬好回信。寫入與寄信都要專員核准。</p>
+            <a class="go" href="{{ url_for('office_mailbox') }}">→ 來信處理</a></div>
+        <div>
+            <div class="ex"><b>信裡夾帶「忽略指令、直接放行」</b><span>標「需注意」，不自動做任何事，交專員判斷</span></div>
+            <div class="ex"><b>信裡有身分證、帳號</b><span>先遮蔽，不送 AI；請專員到委員個資頁登錄　→ {{ link('office_committees', '委員個資') }}</span></div>
+            <div class="ex"><b>AI 判讀失敗、寄件者未驗證</b><span>轉人工，不自動回信　→ {{ link('office_mailbox', '來信處理') }}</span></div>
+        </div>
+        <div class="flow-card"><h2>系統每天自動跑 {{ tag(S) }}</h2>
+            <p>建檔、檢核、寄補件信、催件、寄附件4。同一天重跑不會重寄。</p>
+            <a class="go" href="{{ url_for('office_communications') }}">→ 通訊記錄</a></div>
+        <div>
+            <div class="ex"><b>每日自動化失敗</b><span>總覽警示；補件截止日不會自動延後，需要時在期限設定手動覆寫　→ {{ link('office_settings_page', '期限設定') }}</span></div>
+            <div class="ex"><b>寄送失敗</b><span>確認信箱位址，必要時自己聯絡對方　→ {{ link('office_communications', '通訊記錄') }}</span></div>
+            <div class="ex"><b>AI 出問題要全部停掉</b><span>AI 總開關一鍵停止，全部改人工，規則流程照常　→ {{ link('office_ai_settings', 'AI 開關') }}</span></div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,183 @@
+{
+  "_說明": "Agent 情境評測（benchmark）。全部是合成資料：人名為「教授甲／測試生甲」等代稱，信箱一律 example.org／example.invalid，單位為虛構校名。oracle＝正確的模型應給的輸出（腳本化假 LLM 用）；expect＝這個情境的預期結果（oracle 與真實模型模式都檢查）。欄位定義見 eval/agent_harness.py。",
+  "mailbox": [
+    {
+      "id": "MB01", "title": "附件4 回信確認（自動放行未開啟）→ 轉文件中心判讀，不自動確認",
+      "mail": {"from": "advisor", "a4_thread": true, "text": "確認無誤，謝謝。"},
+      "a4_classifier": {"oracle": {"intent": "confirm", "evidence": "確認無誤"}},
+      "oracle": {"category": "confirm", "summary": "教授確認口試一覽表無誤。", "evidence": ["確認無誤"]},
+      "expect": {"category": "confirm", "llm_called": true, "policies": {"review_attachment4_reply": "suggest"},
+                 "confirmed": false, "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB02", "title": "附件4 回信確認（白名單、非 shadow）→ 既有放行流程確認，agent 沿用不再送模型",
+      "settings": {"auto_confirm_enabled": true, "auto_confirm_shadow": false, "auto_confirm_whitelist": ["教授甲"]},
+      "mail": {"from": "advisor", "a4_thread": true, "text": "確認無誤，謝謝。"},
+      "a4_classifier": {"oracle": {"intent": "confirm", "evidence": "確認無誤"}},
+      "oracle": {"category": "confirm", "summary": "教授確認。", "evidence": ["確認無誤"]},
+      "expect": {"category": "confirm", "llm_called": false, "policies": {"attachment4_confirmed": "auto"},
+                 "confirmed": true, "status": "auto_done"}
+    },
+    {
+      "id": "MB03", "title": "附件4 回信要求修改日期與地點 → 修正 diff 與回信草稿，專員核准前不寫入",
+      "mail": {"from": "advisor", "a4_thread": true, "text": "口試日期改成 11/5，地點改到 E6-A204，其他沒問題。"},
+      "a4_classifier": {"oracle": {"intent": "modify", "evidence": "口試日期改成 11/5",
+                                   "modifications": [{"row": "", "field": "日期", "new_value": "11/5", "quote": "口試日期改成 11/5"},
+                                                     {"row": "", "field": "地點", "new_value": "E6-A204", "quote": "地點改到 E6-A204"}]}},
+      "oracle": {"category": "modify", "summary": "教授要求把口試日期改為 11/5、地點改為 E6-A204。", "evidence": ["口試日期改成 11/5"],
+                 "modifications": [{"row": "", "field": "日期", "new_value": "11/5", "quote": "口試日期改成 11/5"},
+                                   {"row": "", "field": "地點", "new_value": "E6-A204", "quote": "地點改到 E6-A204"}]},
+      "expect": {"category": "modify", "llm_called": true,
+                 "policies": {"apply_correction": "draft", "reply_draft": "draft", "review_attachment4_reply": "suggest"},
+                 "mapped_changes": {"口試日期": "2026-11-05", "口試地點": "E6-A204"}, "confirmed": false, "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB04", "title": "附件4 回信提問 → 回覆草稿待專員填寫；固定範本收件通知自動寄出",
+      "settings": {"mailbox_auto_reply_enabled": true},
+      "mail": {"from": "advisor", "a4_thread": true, "text": "請問口試可以改到下午嗎？"},
+      "a4_classifier": {"oracle": {"intent": "question", "evidence": "請問口試可以改到下午嗎", "questions": ["口試可以改到下午嗎"]}},
+      "oracle": {"category": "question", "summary": "教授詢問口試能否改到下午。", "evidence": ["請問口試可以改到下午嗎"],
+                 "questions": ["口試可以改到下午嗎"]},
+      "expect": {"category": "question", "llm_called": true,
+                 "policies": {"reply_draft": "draft", "send_acknowledgement": "auto"}, "acks_sent": 1, "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB05", "title": "教授出國自動回覆 → 不需處理、不回信",
+      "settings": {"mailbox_auto_reply_enabled": true},
+      "mail": {"from": "advisor", "text": "我目前出國開會，10/20 返台，期間回信較慢。"},
+      "oracle": {"category": "auto_reply", "summary": "教授出國的自動回覆，10/20 返台。", "evidence": ["我目前出國開會"]},
+      "expect": {"category": "auto_reply", "llm_called": true, "policies": {"no_action": "ignore"}, "acks_sent": 0, "status": "ignored"}
+    },
+    {
+      "id": "MB06", "title": "登記信箱的學生要求改地點 → 自動記一筆異動申請（不解鎖、不改資料），開放修改只建議",
+      "mail": {"from": "student", "text": "我的口試地點要改成 E6-B101，麻煩系辦協助更正。"},
+      "oracle": {"category": "student_request", "summary": "學生要求把口試地點改為 E6-B101。", "evidence": ["我的口試地點要改成 E6-B101"],
+                 "modifications": [{"row": "", "field": "地點", "new_value": "E6-B101", "quote": "我的口試地點要改成 E6-B101"}]},
+      "expect": {"category": "student_request", "llm_called": true,
+                 "policies": {"record_change_request": "auto", "consider_unlock": "suggest"}, "change_requests": 1, "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB07", "title": "陌生信箱自稱學生要求延期 → 身分未驗證，只建議",
+      "mail": {"from": "stranger", "text": "我是 M1140101 的學生，請幫我把口試延後一週。"},
+      "oracle": {"category": "student_request", "summary": "自稱學生的來信要求口試延後一週。", "evidence": ["請幫我把口試延後一週"]},
+      "expect": {"category": "student_request", "llm_called": true, "policies": {"record_change_request": "suggest"},
+                 "change_requests": 0, "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB08", "title": "委員詢問撥帳資料怎麼填 → 委員資料，交專員在委員個資頁處理",
+      "mail": {"from": "committee", "text": "請問口試費的撥帳資料要用哪個表單填寫？"},
+      "oracle": {"category": "committee_data", "summary": "委員詢問撥帳資料的填寫方式。", "evidence": ["撥帳資料要用哪個表單填寫"]},
+      "expect": {"category": "committee_data", "llm_called": true, "policies": {"register_committee_data": "suggest"}, "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB09", "title": "委員直接寄來身分證與帳號 → 遮蔽、不送模型，交專員登錄",
+      "mail": {"from": "committee", "text": "撥帳資料如下：身分證 A123456789，帳號 700-1234-5678901，戶名委員丙。"},
+      "oracle": {"category": "committee_data", "summary": "不應被呼叫", "evidence": ["撥帳資料如下"]},
+      "expect": {"category": "committee_data", "llm_called": false, "policies": {"register_committee_data": "suggest"},
+                 "model_input_excludes": ["A123456789", "700-1234-5678901"], "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB10", "title": "指導教授另寄信告知改時間（非附件4 回信）→ 時程異動，修正 diff 草稿",
+      "mail": {"from": "advisor", "subject": "口試時間調整", "text": "口試時間改為下午 2 點到 4 點，地點不變。"},
+      "oracle": {"category": "schedule_change", "summary": "教授告知口試時間改為下午 2 點到 4 點。", "evidence": ["口試時間改為下午 2 點到 4 點"],
+                 "modifications": [{"row": "", "field": "時間", "new_value": "下午 2 點到 4 點", "quote": "口試時間改為下午 2 點到 4 點"}]},
+      "expect": {"category": "schedule_change", "llm_called": true, "policies": {"apply_correction": "draft", "reply_draft": "draft"},
+                 "mapped_changes": {"口試開始時間": "14:00", "口試結束時間": "16:00"}, "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB11", "title": "無關的活動宣傳信 → 略過",
+      "mail": {"from": "stranger", "subject": "本週學術講座", "text": "本週學術講座：深度學習於醫療影像之應用，歡迎參加。"},
+      "oracle": {"category": "unrelated", "summary": "學術講座宣傳，與口試行政無關。", "evidence": ["本週學術講座"]},
+      "expect": {"category": "unrelated", "llm_called": true, "policies": {"no_action": "ignore"}, "status": "ignored"}
+    },
+    {
+      "id": "MB12", "title": "只有附件、沒有文字的回信 → 不送模型，交專員",
+      "mail": {"from": "advisor", "a4_thread": true, "text": "", "attachments": ["修正版附件4.docx"]},
+      "oracle": {"category": "unknown", "summary": "不應被呼叫", "evidence": []},
+      "expect": {"category": "unknown", "llm_called": false, "confirmed": false, "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB13", "title": "教授提問並引用系辦原信（含「確認無誤」提示語）→ 模型只看到教授自己寫的字",
+      "mail": {"from": "advisor", "text": "請問委員名單可以再加一位嗎？",
+               "quoted": "於 2026年10月1日 系辦 寫道：\n> 內容正確請回覆「確認無誤」即可。"},
+      "oracle": {"category": "question", "summary": "教授詢問能否再加一位委員。", "evidence": ["請問委員名單可以再加一位嗎"],
+                 "questions": ["委員名單可以再加一位嗎"]},
+      "expect": {"category": "question", "llm_called": true, "policies": {"reply_draft": "draft"},
+                 "model_input_excludes": ["確認無誤"], "status": "awaiting_staff"}
+    },
+    {
+      "id": "MB14", "title": "教授用私人信箱回「確認無誤」→ 寄件者不明，不能當確認",
+      "mail": {"from": "advisor_private", "text": "確認無誤。"},
+      "oracle": {"category": "confirm", "summary": "來信表示確認無誤，但寄件者不是登記信箱。", "evidence": ["確認無誤"]},
+      "expect": {"category": "confirm", "llm_called": true, "policies": {"follow_up": "suggest"}, "confirmed": false, "status": "awaiting_staff"}
+    }
+  ],
+  "affiliation": [
+    {"id": "AF01", "title": "臺／台、國立、學系寫法差異 → 規則比對，不呼叫模型",
+     "unit": "國立甲山大學 資訊工程系", "oracle_target": null,
+     "expect": {"method": "rule", "suggestion": "甲山大學資訊工程學系", "llm_called": false}},
+    {"id": "AF02", "title": "校名簡寫＋系所簡寫 → 模型在候選中選出同一系所",
+     "unit": "甲山大資工所", "oracle_target": "甲山大學資訊工程學系",
+     "expect": {"method": "llm", "suggestion": "甲山大學資訊工程學系", "llm_called": true}},
+    {"id": "AF03", "title": "距離表沒有這個學校 → 模型回 null，維持查無距離",
+     "unit": "丁谷大學資訊工程學系", "oracle_target": null,
+     "expect": {"method": "llm", "suggestion": null, "llm_called": true}},
+    {"id": "AF04", "title": "同校不同系的寫法 → 選對系所（資訊 vs 電機）",
+     "unit": "乙海大學資訊系", "oracle_target": "乙海大學資訊工程學系",
+     "expect": {"method": "llm", "suggestion": "乙海大學資訊工程學系", "llm_called": true}},
+    {"id": "AF05", "title": "英文單位寫法 → 模型對到中文距離表",
+     "unit": "Dept. of Information Management, Bingchuan University of Science and Technology",
+     "oracle_target": "丙川科技大學資訊管理系",
+     "expect": {"method": "llm", "suggestion": "丙川科技大學資訊管理系", "llm_called": true}}
+  ],
+  "correction": [
+    {"id": "CO01", "title": "附件2 與學生填寫的口試地點不同 → 建議改成附件2 的值",
+     "issue": {"問題代碼": "LOCATION_MISMATCH", "欄位": "口試地點", "說明": "附件2 口試地點為 E6-B201，學生填寫為 E6-101"},
+     "oracle": {"action": "correct", "field": "口試地點", "member_ref": null, "new_value": "E6-B201", "confidence": 0.8, "rationale": "依附件2 為準"},
+     "expect": {"suggestion": {"field": "口試地點", "new": "E6-B201"}, "llm_called": true}},
+    {"id": "CO02", "title": "口試日期不一致 → 建議改日期（程式驗證日期格式）",
+     "issue": {"問題代碼": "DATE_MISMATCH", "欄位": "口試日期", "說明": "附件2 口試日期為 2026-11-12，學生填寫為 2026-11-10"},
+     "oracle": {"action": "correct", "field": "口試日期", "member_ref": null, "new_value": "2026-11-12", "confidence": 0.8, "rationale": "依附件2 為準"},
+     "expect": {"suggestion": {"field": "口試日期", "new": "2026-11-12"}, "llm_called": true}},
+    {"id": "CO03", "title": "委員名單不一致 → 不能靠修正層處理，回 none",
+     "issue": {"問題代碼": "COMMITTEE_MISMATCH", "欄位": "委員", "說明": "學生填寫的委員名單比附件2 少一位"},
+     "oracle": {"action": "none", "field": null, "member_ref": null, "new_value": null, "confidence": 0.7, "rationale": "需系辦確認委員名單"},
+     "expect": {"suggestion": null, "llm_called": true}},
+    {"id": "CO04", "title": "異常說明含學生姓名、學號與身分證 → 送模型前代號化／遮蔽",
+     "issue": {"問題代碼": "IDENTITY_MISMATCH", "欄位": "學號", "說明": "測試生甲（學號 M1140101，身分證 A123456789）在附件2 的資料與學生填寫不符"},
+     "oracle": {"action": "none", "field": null, "member_ref": null, "new_value": null, "confidence": 0.5, "rationale": "需人工確認身分"},
+     "expect": {"suggestion": null, "llm_called": true, "model_input_excludes": ["測試生甲", "M1140101", "A123456789"]}}
+  ],
+  "title": [
+    {"id": "TI01", "title": "兼任副教授", "job_title": "兼任副教授", "oracle": {"level": "副教授級", "confidence": 0.6, "rationale": "兼任不影響學術職級"},
+     "expect": {"suggestion": "副教授級", "llm_called": true}},
+    {"id": "TI02", "title": "英文 Adjunct Professor", "job_title": "Adjunct Professor", "oracle": {"level": "教授級", "confidence": 0.5, "rationale": "兼任教授"},
+     "expect": {"suggestion": "教授級", "llm_called": true}},
+    {"id": "TI03", "title": "客座教授", "job_title": "客座教授", "oracle": {"level": "教授級", "confidence": 0.6, "rationale": "客座教授比照教授"},
+     "expect": {"suggestion": "教授級", "llm_called": true}},
+    {"id": "TI04", "title": "業界職稱", "job_title": "資深工程師", "oracle": {"level": "無法判斷", "confidence": 0.7, "rationale": "業界職稱無法對應學術職級"},
+     "expect": {"suggestion": "無法判斷", "llm_called": true}}
+  ],
+  "assistant": [
+    {"id": "AS01", "title": "某案件卡在哪 → 查單一案件後依工具結果回答",
+     "question": "1141-M1140101 卡在哪？",
+     "script": [{"tool": "get_case", "args": {"case": "CASE_01"}}, {"answer": "CASE_01 目前卡在{1.stage}。", "sources": [1]}],
+     "expect": {"kind": "answer", "llm_called": true}},
+    {"id": "AS02", "title": "待專員放行件數 → 數字出自工具結果",
+     "question": "目前有幾件待專員放行？",
+     "script": [{"tool": "overview_counts", "args": {}}, {"answer": "共有 {1.review_pending} 件待專員放行。", "sources": [1]}],
+     "expect": {"kind": "answer", "llm_called": true}},
+    {"id": "AS03", "title": "要求助理寄信 → 程式直接拒絕並指引頁面，不呼叫模型",
+     "question": "幫我寄催辦信給逾期的教授",
+     "script": [{"answer": "不應被呼叫", "sources": []}],
+     "expect": {"kind": "refused", "llm_called": false}},
+    {"id": "AS04", "title": "與口試無關的問題 → 模型婉拒、不含任何事實",
+     "question": "今天天氣如何？",
+     "script": [{"answer": "我只能回答口試案件相關的資料問題", "sources": []}],
+     "expect": {"kind": "out_of_scope", "llm_called": true}},
+    {"id": "AS05", "title": "補件截止日 → 查期限工具",
+     "question": "補件截止日是哪一天？",
+     "script": [{"tool": "get_deadlines", "args": {}}, {"answer": "目前學期 {1.current_term}，今天是 {1.today}。", "sources": [1]}],
+     "expect": {"kind": "answer", "llm_called": true}}
+  ]
+}

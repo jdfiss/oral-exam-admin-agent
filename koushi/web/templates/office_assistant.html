@@ -1,0 +1,102 @@
+{% extends "office_base.html" %}
+{% block title %}問答助理{% endblock %}
+{% block breadcrumb %}問答助理{% endblock %}
+{% block extra_head %}
+<style>
+.chat{display:flex;flex-direction:column;gap:14px;margin:18px 0}
+.bubble{background:white;border:1px solid #D8D4C8;padding:14px 18px;max-width:900px}
+.bubble.me{align-self:flex-end;background:#E6EEEA;border-color:#C9DAD3}
+.bubble .who{font-size:12px;color:var(--muted);margin-bottom:6px}
+.answer-text{white-space:pre-wrap;font-size:14px}
+.answer-note{color:#A3460F;font-weight:600;font-size:13px;margin:6px 0}
+.answer-problems{font-size:12px;color:var(--muted);margin:4px 0 8px 18px}
+.raw-table{margin:10px 0}.raw-table table{white-space:normal;font-size:13px}.raw-table caption{text-align:left;font-size:12px;color:var(--muted);padding:4px 0}
+.trace{margin-top:10px;font-size:12px;color:var(--muted)}.trace summary{cursor:pointer}
+.trace table{white-space:normal;font-size:12px}.trace pre{white-space:pre-wrap;max-height:240px;overflow:auto;background:#FAF8F2;padding:8px;margin:4px 0}
+.ask-form{display:flex;gap:10px;position:sticky;bottom:0;background:var(--bg);padding:12px 0}
+.ask-form input{flex:1;border:1px solid var(--line);padding:9px 12px;background:white}
+.suggestions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.suggestions button{font-size:13px;font-weight:400;padding:6px 12px}
+.link-case{white-space:nowrap}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>問答助理</h1>
+        <p><b>這頁要做的事：</b>在下方輸入框打問題（或點「可以這樣問」的範例），按「送出」。助理只能查資料，不能寄信、審核或修改任何東西。</p>
+        <details class="page-more explain"><summary>更多說明</summary>
+            <p>每個回答都由程式核對過工具查到的資料，核對不過就直接顯示原始資料。</p>
+            <p>案件、學生與人名在送給模型前會換成代號，身分證、帳號、地址等個資從不送出。</p>
+        </details>
+    </div>
+</div>
+{% if disabled_reason %}
+<div class="panel"><p>{{ disabled_reason }}</p></div>
+{% else %}
+<div class="panel">
+    <h2>可以這樣問</h2>
+    <div class="suggestions">
+        {% for q in suggestions %}<button type="button" data-suggest="{{ q }}">{{ q }}</button>{% endfor %}
+    </div>
+</div>
+<div id="chat" class="chat" aria-live="polite"></div>
+<form id="ask-form" class="ask-form" method="post" action="{{ url_for('office_assistant_ask') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="question" class="sr-only">問題</label>
+    <input id="question" name="question" maxlength="500" autocomplete="off" required placeholder="例如：哪些案件卡在待專員放行？">
+    <button type="submit" class="primary">送出</button>
+</form>
+{% endif %}
+{% endblock %}
+{% block dialogs %}
+<dialog id="case-dialog" class="drawer" aria-labelledby="case-title">
+    <div class="drawer-head"><span>案件詳情</span><button class="close" data-close="case-dialog" aria-label="關閉案件詳情">×</button></div>
+    <div id="case-detail"></div>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    const form = document.getElementById("ask-form");
+    if (!form) return;
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("question");
+    const button = form.querySelector("button[type=submit]");
+    function bubble(cls, html) {
+        const div = document.createElement("div");
+        div.className = "bubble " + cls;
+        div.innerHTML = html;
+        chat.appendChild(div);
+        div.scrollIntoView({behavior: "smooth", block: "end"});
+        return div;
+    }
+    async function ask(question) {
+        const mine = bubble("me", '<div class="who">你</div><div class="answer-text"></div>');
+        mine.querySelector(".answer-text").textContent = question;
+        const pending = bubble("bot", '<div class="who">問答助理</div><div class="answer-text">查詢中…</div>');
+        button.disabled = true;
+        const data = new FormData(form);
+        data.set("question", question);
+        try {
+            const resp = await fetch(form.action, {method: "POST", body: data});
+            pending.innerHTML = await resp.text();
+        } catch (err) {
+            pending.innerHTML = '<div class="who">問答助理</div><div class="answer-note">連線失敗，請重新整理後再試。</div>';
+        } finally {
+            button.disabled = false;
+        }
+    }
+    form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const q = input.value.trim();
+        if (!q) return;
+        input.value = "";
+        ask(q);
+    });
+    document.addEventListener("click", (event) => {
+        const s = event.target.closest("[data-suggest]");
+        if (s) ask(s.dataset.suggest);
+    });
+})();
+</script>
+{% endblock %}

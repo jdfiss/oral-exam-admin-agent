@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block content %}<h1>來源異常處理</h1><p>以下來源列無法對應案件。請修正原始檔並重新匯入，或留下可查證的處理原因。來源內容改變後須重新處理。</p>
+{% for item in items %}<section><h2>{{ item.issue['問題代碼'] }}</h2><p>{{ item.issue['說明'] }}</p>
+{% if item.resolution %}<p>已處理：{{ item.resolution.actor }}　{{ item.resolution.at }}　{{ item.resolution.reason }}</p>{% else %}<form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="issue_key" value="{{ item.key }}"><label>處理人<input name="handler" required></label><label>處理證據或原因<textarea name="reason" required></textarea></label><button>記錄處理</button></form>{% endif %}</section>{% else %}<p>沒有無案件鍵的來源異常。</p>{% endfor %}{% endblock %}

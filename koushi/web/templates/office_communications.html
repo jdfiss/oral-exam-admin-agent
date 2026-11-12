@@ -1,0 +1,89 @@
+{% extends "office_base.html" %}
+{% block title %}通訊記錄{% endblock %}
+{% block breadcrumb %}通訊記錄{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>通訊記錄</h1>
+        <p>系統自動產生、審閱、寄出的每一封補件通知／附件4／附件6 簽收提醒（寄給口試委員），都會留在這裡，不用另外查信箱。</p>
+    </div>
+</div>
+
+<div class="case-section todo">
+    <div class="section-heading"><h2>寄送統計</h2></div>
+    <table>
+        <thead><tr><th scope="col">狀態</th><th scope="col" class="num">封數</th><th scope="col">說明</th></tr></thead>
+        <tbody>
+            <tr><td>草稿／待核准</td><td class="num">{{ stats.pending }}</td><td class="note">系統已產生但還沒實際寄出，等下一輪自動化或人工處理。</td></tr>
+            <tr><td>{{ '已放入模擬寄件匣' if judge_mode else '已寄出' }}</td><td class="num">{{ stats.sent }}</td><td class="note">{% if judge_mode %}{{ who }}模式不寄出真實信件：這些信只存在「模擬寄件匣」，可以在那裡查看與模擬回信。{% else %}郵件伺服器已接受寄出（收件人信箱是否收到以對方系統為準）。{% endif %}</td></tr>
+            <tr><td>寄送失敗</td><td class="num{{ ' overdue-text' if stats.failed else '' }}">{{ stats.failed }}</td><td class="note">系統寄信時出錯，收件人沒收到，需要系辦確認原因。</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="case-section">
+    <div class="section-heading">
+        <h2>寄送事件 <span class="total-count">{{ events|length }}</span></h2>
+        {% if events %}{% if is_judge %}<span class="btn" aria-disabled="true" title="{{ who }}模式不可用" style="opacity:.55;cursor:not-allowed;">匯出 Excel（{{ who }}模式不可用）</span>{% else %}<a class="btn" href="{{ url_for('office_communications_export') }}">匯出 Excel</a>{% endif %}{% endif %}
+    </div>
+    {% if events %}
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">類型</th>
+                    <th scope="col">收件人</th>
+                    <th scope="col">主旨</th>
+                    <th scope="col">
+                        狀態
+                        <button type="button" class="info-toggle" data-info-toggle="info-comm-status" aria-expanded="false" aria-label="狀態說明">i</button>
+                    </th>
+                    <th scope="col">建立時間</th>
+                    <th scope="col">寄出時間</th>
+                    <th scope="col"><span class="sr-only">操作</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in events %}
+                <tr>
+                    <td>{{ type_labels.get(e.type, e.type) }}</td>
+                    <td>{{ e.to or '（查無收件人，需人工處理）' }}</td>
+                    <td>{{ e.subject }}</td>
+                    <td>
+                        {% if e.status == 'sent' %}
+                        <span class="badge ready">{{ status_labels.get(e.status, e.status) }}</span>
+                        {% elif e.status == 'failed' %}
+                        <span class="badge missing">{{ status_labels.get(e.status, e.status) }}</span>
+                        {% elif e.status == 'rejected' %}
+                        <span class="badge neutral">{{ status_labels.get(e.status, e.status) }}</span>
+                        {% else %}
+                        <span class="badge review">{{ status_labels.get(e.status, e.status) }}</span>
+                        {% endif %}
+                        {% if e.status == 'failed' and e.note %}
+                        <small class="doc-status-note error">{{ e.note }}</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ e.created_at|fmt_time }}</td>
+                    <td>{{ (e.sent_at|fmt_time) or '－' }}</td>
+                    <td>
+                        {% if e.tracking.get('case_key') %}
+                        <button class="row-action" data-case="{{ e.tracking.case_key }}" aria-label="查看 {{ e.tracking.case_key }} 案件">查看案件</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div id="info-comm-status" class="info-pop" hidden role="note">
+        <p><b>草稿中</b>：系統已判斷需要通知，但還沒經過核准／排入寄送。</p>
+        <p><b>已核准待寄</b>：已核准，等下一次寄送動作實際送出。</p>
+        <p><b>已退回不寄</b>：系辦判斷不需要寄，這封不會送出。</p>
+        <p><b>{{ "已放入模擬寄件匣" if judge_mode else "已寄出" }}</b>：{{ (who ~ "模式不寄真實信件，信件只在模擬寄件匣。") if judge_mode else "郵件伺服器已接受寄出，不需要再處理。" }}</p>
+        <p><b>寄送失敗</b>：系統寄信時發生錯誤（例如信箱位址有誤），需要系辦確認原因，必要時手動聯絡對方或請開發者協助排查。</p>
+    </div>
+    {% else %}
+    <p style="color:var(--muted); padding:0 23px 23px;">尚無寄送記錄——可能是還沒有需要通知的事項，或系統還沒執行過自動化寄送（見「文件中心」的追蹤現況）。</p>
+    {% endif %}
+</div>
+{% endblock %}

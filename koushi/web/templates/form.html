@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block title %}填寫口試補充資料{% endblock %}
+{% block content %}
+<h1>{{ "修改" if data else "填寫" }}口試補充資料</h1>
+<p class="hint">口試申請請先在 Portal 完成；這裡只填 Portal 沒有的資料（附件 3）。送出即生效，{% if deficiency_period %}目前是補件期間：補件截止日{% if edit_deadline %}（{{ edit_deadline }}）{% endif %}前都可以回來修改。{% else %}填寫截止日{% if edit_deadline %}（{{ edit_deadline }}）{% endif %}前都可以回來修改。{% endif %}資料還沒填完可以先按「暫存」，暫存不算送出。</p>
+{% if from_draft %}<p class="hint" style="color:#8a5a00;">以下是你上次暫存的內容，尚未送出。</p>{% endif %}
+<form method="POST" action="{{ url_for('submit') }}" id="mainForm">
+    <input type="hidden" name="base_version" value="{{ data.base_version if data and data.base_version is defined else (data.version if data and data.version else 0) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="section">
+        <h2>基本資料</h2>
+        <div class="form-row">
+            <div>
+                <label class="required" for="term">學期</label>
+                <input type="text" id="term" value="{{ term|term_label }}" readonly style="background:#eee;"><input type="hidden" name="term" value="{{ term }}">
+                <p class="hint">新增時選定，之後不可修改；學期選錯請聯絡系辦。</p>
+            </div>
+            <div>
+                <label class="required" for="student_id">學號</label>
+                <input type="text" id="student_id" name="student_id" value="{{ student_id }}" readonly style="background:#eee;">
+            </div>
+        </div>
+        <div class="form-row">
+            <div>
+                <label class="required" for="student_email">Email</label>
+                <input type="email" id="student_email" name="student_email" placeholder="收補件通知用" value="{{ data.student_email if data else '' }}" required>
+            </div>
+            <div>
+                <label for="thesis_title">論文題目</label>
+                <input type="text" id="thesis_title" name="thesis_title" value="{{ data.thesis_title if data else '' }}">
+                <p class="hint">選填；Portal 已有題目時以 Portal 為準。</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>指導教授</h2>
+        <p class="hint">共同指導請逐位新增。系統會用這個 E-mail 寄附件4 給教授參考（教授不用回信）。</p>
+        <div id="advisors">
+            {% set advisors = (data.advisors if data and data.advisors else ['']) %}
+            {% set advisor_emails = (data.advisor_emails if data and data.advisor_emails else {}) %}
+            {% for name in advisors %}
+            <div class="form-row-3 advisor-row">
+                <div>
+                    <label class="required">指導教授姓名</label>
+                    <input type="text" name="advisor_{{ loop.index0 }}" value="{{ name }}" required>
+                </div>
+                <div>
+                    <label class="required">指導教授 E-mail</label>
+                    <input type="email" name="advisor_{{ loop.index0 }}_email" value="{{ advisor_emails.get(name, '') }}" required>
+                </div>
+                <div style="align-self:end;">
+                    {% if not loop.first %}<button type="button" class="btn btn-secondary" onclick="removeAdvisor(this)">移除</button>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="addAdvisor()" style="margin-top:8px;">+ 新增共同指導教授</button>
+    </div>
+
+    <div class="section">
+        <h2>口試資訊</h2>
+        <div class="form-row-3">
+            <div>
+                <label class="required" for="exam_date">口試日期</label>
+                <input type="date" id="exam_date" name="exam_date" value="{{ data.exam_date if data else '' }}" required>
+            </div>
+            <div>
+                <label for="exam_start_time">開始時間</label>
+                <input type="time" id="exam_start_time" name="exam_start_time" value="{{ data.exam_start_time if data else '' }}">
+            </div>
+            <div>
+                <label for="exam_end_time">結束時間</label>
+                <input type="time" id="exam_end_time" name="exam_end_time" value="{{ data.exam_end_time if data else '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div>
+                <label for="exam_location">口試地點</label>
+                <input type="text" id="exam_location" name="exam_location" placeholder="例：工程館 A302" value="{{ data.exam_location if data else '' }}">
+            </div>
+            <div>
+                <label for="exam_mode">口試方式</label>
+                <select id="exam_mode" name="exam_mode">
+                    <option value="" {{ 'selected' if not data or not data.exam_mode else '' }}>實體</option>
+                    <option value="視訊" {{ 'selected' if data and data.exam_mode == '視訊' else '' }}>視訊</option>
+                    <option value="部分視訊" {{ 'selected' if data and data.exam_mode == '部分視訊' else '' }}>部分視訊</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>口試委員</h2>
+        <p class="hint">必填。碩士至少 3 位、博士至少 5 位，請依序填入（第一位為召集人）。E-mail 用於系統直接向委員索取撥帳資料，請勿填寫委員的身分證或帳號。</p>
+        <div id="committees">
+            {% if data and data.committees %}
+                {% for c in data.committees %}
+                <div class="committee-card" data-index="{{ loop.index0 }}">
+                    <div class="card-header">
+                        <span>委員 {{ loop.index }}</span>
+                        <button type="button" class="remove-btn" onclick="removeCommittee(this)" title="移除">&times;</button>
+                    </div>
+                    <div class="form-row">
+                        <div>
+                            <label class="required">姓名</label>
+                            <input type="text" name="committee_{{ loop.index0 }}_name" value="{{ c.name }}" required>
+                        </div>
+                        <div>
+                            <label class="required">服務單位</label>
+                            <input type="text" name="committee_{{ loop.index0 }}_unit" value="{{ c.unit }}" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div>
+                            <label>職稱</label>
+                            <input type="text" name="committee_{{ loop.index0 }}_title" value="{{ c.title }}" placeholder="教授/副教授/助理教授">
+                        </div>
+                        <div>
+                            <label class="required">E-mail</label>
+                            <input type="email" name="committee_{{ loop.index0 }}_email" value="{{ c.email }}" required>
+                        </div>
+                    </div>
+                    <label style="font-weight:normal;"><input type="checkbox" name="committee_{{ loop.index0 }}_remote" value="1" {{ 'checked' if c.remote else '' }}> 此委員以視訊出席（部分視訊時勾選，不支領交通費）</label>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="addCommittee()" style="margin-top:8px;">+ 新增委員</button>
+    </div>
+
+    <div class="submit-area">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="margin-right:12px;">返回</a>
+        <button type="submit" name="action" value="draft" class="btn btn-secondary" formnovalidate style="margin-right:12px;">暫存</button>
+        <button type="submit" name="action" value="submit" class="btn btn-primary">送出</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let committeeIndex = {{ data.committees|length if data and data.committees else 0 }};
+
+function addCommittee() {
+    const i = committeeIndex++;
+    const card = document.createElement('div');
+    card.className = 'committee-card';
+    card.dataset.index = i;
+    card.innerHTML = `
+        <div class="card-header">
+            <span>委員 ${i + 1}</span>
+            <button type="button" class="remove-btn" onclick="removeCommittee(this)" title="移除">&times;</button>
+        </div>
+        <div class="form-row">
+            <div><label class="required">姓名</label><input type="text" name="committee_${i}_name" required></div>
+            <div><label class="required">服務單位</label><input type="text" name="committee_${i}_unit" required></div>
+        </div>
+        <div class="form-row">
+            <div><label>職稱</label><input type="text" name="committee_${i}_title" placeholder="教授/副教授/助理教授"></div>
+            <div><label class="required">E-mail</label><input type="email" name="committee_${i}_email" required></div>
+        </div>
+        <label style="font-weight:normal;"><input type="checkbox" name="committee_${i}_remote" value="1"> 此委員以視訊出席（部分視訊時勾選，不支領交通費）</label>
+    `;
+    document.getElementById('committees').appendChild(card);
+}
+
+function removeCommittee(btn) {
+    btn.closest('.committee-card').remove();
+    renumber('.committee-card', /committee_\d+_/, (idx) => `committee_${idx}_`, (card, idx) => {
+        card.querySelector('.card-header span').textContent = `委員 ${idx + 1}`;
+        card.dataset.index = idx;
+    });
+    committeeIndex = document.querySelectorAll('.committee-card').length;
+}
+
+function addAdvisor() {
+    const i = document.querySelectorAll('.advisor-row').length;
+    const row = document.createElement('div');
+    row.className = 'form-row-3 advisor-row';
+    row.innerHTML = `
+        <div><label class="required">指導教授姓名</label><input type="text" name="advisor_${i}" required></div>
+        <div><label class="required">指導教授 E-mail</label><input type="email" name="advisor_${i}_email" required></div>
+        <div style="align-self:end;"><button type="button" class="btn btn-secondary" onclick="removeAdvisor(this)">移除</button></div>
+    `;
+    document.getElementById('advisors').appendChild(row);
+}
+
+function removeAdvisor(btn) {
+    btn.closest('.advisor-row').remove();
+    renumber('.advisor-row', /advisor_\d+/, (idx) => `advisor_${idx}`);
+}
+
+// 後端依連續編號讀取欄位（committee_0_、advisor_0 ...），移除後重新編號避免斷號。
+function renumber(selector, pattern, replacement, extra) {
+    document.querySelectorAll(selector).forEach((el, idx) => {
+        el.querySelectorAll('input, select').forEach((input) => {
+            if (input.name) input.name = input.name.replace(pattern, replacement(idx));
+        });
+        if (extra) extra(el, idx);
+    });
+}
+
+// 新增時預設給 3 張空卡片
+if (committeeIndex === 0) {
+    for (let n = 0; n < 3; n++) addCommittee();
+}
+</script>
+{% endblock %}

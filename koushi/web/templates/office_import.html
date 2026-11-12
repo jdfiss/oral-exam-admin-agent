@@ -1,0 +1,64 @@
+{% extends "office_base.html" %}
+{% block title %}匯入資料{% endblock %}
+{% block breadcrumb %}匯入資料{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('source_issues_page') }}">檢查與處理無案件鍵的來源異常</a></p>
+<div class="page-heading">
+    <div>
+        <h1>系辦建檔資料</h1>
+        <p>附件2（Portal 匯出，可在填寫截止日前提早上傳；有誤可整份重傳，補件截止日以第一次上傳計算）、交通費歷史資料、口試委員歷史資料三份都齊全才會自動重建主檔（只檢查檔案是否存在，不檢查內容是否涵蓋所有案件）。指導教授改由學生填寫，不需上傳。</p>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>
+        建檔資料狀態
+        <button type="button" class="info-toggle" data-info-toggle="info-import" aria-expanded="false" aria-label="上傳說明">i</button>
+    </h2>
+    <div id="info-import" class="info-pop" hidden role="note">
+        <p>附件2 是案件來源（只有附件2 裡的學生會成為案件）；另兩份是產生附件4／5／6需要的參照資料。<b>可以一次只更新其中一份</b>（例如交通費表每學期换新的時候），沒選的檔案維持原樣不變。</p>
+        <p>三份都齊全時，系統會在上傳完成後自動重新產生主檔（不需要再手動觸發）；缺哪一份，下面的狀態列會顯示「尚未提供」。</p>
+        <p>如果上傳後「最近一次自動建檔」顯示失敗，代表檔案格式或內容有問題（例如欄位對不上），<b>先前的主檔不會被覆蓋、其他頁面不受影響</b>，把錯誤訊息記下來請開發者協助排查即可，不用急著重上傳。</p>
+    </div>
+    <div class="status-list">
+        {% for kind, label in file_labels.items() %}
+        <div>
+            <span>{{ label }}</span>
+            {% if files_status[kind] %}
+            <span class="status-ok">已提供</span>
+            {% else %}
+            <span class="status-missing">尚未提供</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <form method="post" action="{{ url_for('upload_registries') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="file-row">
+            {% for kind, label in file_labels.items() %}
+            <div>
+                <label for="file-{{ kind }}">{{ label }}</label>
+                <input type="file" id="file-{{ kind }}" name="{{ kind }}">
+            </div>
+            {% endfor %}
+        </div>
+        <div class="actions">
+            <button type="submit" class="primary" {{ ('disabled title="' ~ who ~ '模式不可用"') if is_judge else '' }}>上傳（可只選其中幾份）</button>{% if is_judge %} <small>{{ who }}模式不可用：示範資料已預先載入，不能上傳來源檔。</small>{% endif %}
+        </div>
+    </form>
+
+    {% if build_status %}
+    <p class="build-status {{ 'ok' if build_status.status == 'built' else 'failed' if build_status.status == 'failed' else '' }}">
+        最近一次自動建檔（{{ build_status.at }}）：
+        {% if build_status.status == 'built' %}
+            成功，{{ build_status.case_count }} 案／{{ build_status.issue_count }} 項待處理
+        {% elif build_status.status == 'failed' %}
+            失敗，主檔未更新：{{ build_status.error }}
+        {% else %}
+            三份資料尚未備齊，等待中
+        {% endif %}
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

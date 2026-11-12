@@ -1,0 +1,95 @@
+{% extends "office_base.html" %}
+{% block title %}委員個資{% endblock %}
+{% block breadcrumb %}委員個資{% endblock %}
+{% block extra_head %}
+<style>
+    .reply-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px}
+    .reply-form input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:2px;font:inherit}
+    details summary{cursor:pointer;color:var(--primary);font-size:12px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>委員個資索取</h1>
+        <p>專員放行案件後，系統會寄信給撥帳資料不齊的校外委員索取個資（同一位委員只寄一封）。委員可從信中的專屬連結自行填寫；若委員改以回信提供，請在此登錄。資料不經學生。</p>
+    </div>
+</div>
+
+<div class="case-section">
+    <div class="section-heading">
+        <h2>待取得資料的委員 <span class="total-count">{{ requests|length }}</span></h2>
+    </div>
+    {% if requests %}
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">委員</th>
+                    <th scope="col">案件</th>
+                    <th scope="col">最早口試日</th>
+                    <th scope="col">狀態</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in requests %}
+                <tr>
+                    <td><strong>{{ r.name }}</strong><small>{{ r.email }}</small></td>
+                    <td>{% for k in r.case_keys %}<span title="{{ k }}">{{ case_names.get(k) or (k|case_label) }}</span>{% if not loop.last %}、{% endif %}{% endfor %}</td>
+                    <td>{{ r.earliest_exam or '（未填）' }}</td>
+                    <td style="white-space:normal;min-width:280px;">
+                        {% if r.received %}<span class="badge ready">已回填</span>
+                        {% else %}
+                            {% if r.missing_before_exam(today) %}<span class="badge missing">口試將至仍未提供</span>
+                            {% elif r.sent_date %}<span class="badge review">{{ '已放入模擬寄件匣' if judge_mode else '已寄出' }} {{ r.sent_date }}</span>
+                            {% else %}<span class="badge neutral">待寄出</span>{% endif %}
+                        {% if links.get(r.key) %}
+                        <details>
+                            <summary>委員線上填寫連結</summary>
+                            <input type="text" readonly value="{{ links[r.key] }}" onclick="this.select()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:2px;font:inherit;font-size:12px;margin-top:6px;">
+                        </details>
+                        {% endif %}
+                        <details>
+                            <summary>登錄委員回覆的{{ '身分證字號' if r.id_only else '撥帳資料' }}</summary>
+                            <form method="POST" action="{{ url_for('record_committee_reply') }}" class="reply-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="email" value="{{ r.email }}"><input type="hidden" name="identity_binding" value="{{ r.binding }}">
+                                <input type="text" name="handler" required placeholder="處理人" value="{{ session.get('handler', '') }}" autocomplete="off">
+                                {% for field in r.fields %}
+                                <input type="text" name="{{ field }}" placeholder="{{ field }}" required autocomplete="off">
+                                {% if field in r.confirm_fields %}
+                                <input type="text" name="{{ field }}_確認" placeholder="再輸入一次{{ field }}" required autocomplete="off">
+                                {% endif %}
+                                {% endfor %}
+                                <label style="display:flex;gap:6px;align-items:center;font-size:12px;"><input type="checkbox" name="foreign_id" value="1" style="width:auto;">非本國身分證（護照等）</label>
+                                <button type="submit" class="primary">登錄</button>
+                            </form>
+                        </details>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty"><h3>目前沒有需要索取資料的委員</h3><p>{% if received %}下方委員都已回填資料。{% endif %}專員在工作總覽的人工關卡放行案件後，撥帳資料不齊的委員才會出現在這裡。</p></div>
+    {% endif %}
+</div>
+
+{% if received %}
+<div class="case-section">
+    <div class="section-heading"><h2>已回填的委員 <span class="total-count">{{ received|length }}</span></h2></div>
+    <div class="table-scroll"><table>
+        <thead><tr><th scope="col">委員</th><th scope="col">案件</th><th scope="col">狀態</th><th scope="col">回填時間</th></tr></thead>
+        <tbody>{% for r in received %}
+        <tr><td><strong>{{ r.name }}</strong></td>
+            <td>{% for k in r.case_keys %}<span title="{{ k }}">{{ case_names.get(k) or (k|case_label) }}</span>{% if not loop.last %}、{% endif %}{% endfor %}</td>
+            <td><span class="badge ready">已回填</span> <small>{{ r.source }}</small></td><td>{{ r.at|fmt_time }}</td></tr>
+        {% endfor %}</tbody>
+    </table></div>
+    <p class="footnote">回填後系統自動重建主檔，撥帳資料寫入口委資料庫；本頁不顯示個資內容。</p>
+</div>
+{% endif %}
+<p class="footnote">登錄時會檢查身分證字號的檢查碼與帳號位數（8–16 位數字），身分證與帳號需輸入兩次。{% if public_url_set %}索取信會附上委員專屬填寫連結{% if not judge_mode %}（正式上線必須使用 HTTPS）{% endif %}。{% else %}系統尚未設定對外網址，索取信改請委員直接回信提供資料；設定後才會附專屬填寫連結。{% endif %}已登錄的個資不在此頁顯示，會寫入主檔輸出的口委資料庫。</p>
+{% endblock %}

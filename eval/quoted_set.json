@@ -1,0 +1,244 @@
+{
+  "_meta": {
+    "synthetic": true,
+    "description": "合成資料：教授回覆位於引用原信之上（或之中），原信含「確認無誤」提示語。所有姓名、信箱、代碼、版本皆為虛構。用於比較「原始 body」與「inbox.py 去引用後 reply_text」兩種送模型方式。",
+    "built": "2026-10-08，依 advisor_confirmation.draft() 的實際寄件內文格式手工撰寫回覆、以程式套上 12 種引用格式（含 3 種清理層已知抓不到的格式）",
+    "quoted_trigger": "確認無誤"
+  },
+  "cases": [
+    {
+      "id": "Q01",
+      "category": "引用+修改",
+      "quote_style": "gmail_en",
+      "content_type": "text/plain",
+      "professor_reply": "日期要改成 12/27，其他沒問題",
+      "raw_body": "日期要改成 12/27，其他沒問題\n\nOn Thu, Oct 8, 2026 at 10:02 AM 示範學系系辦 <office@example.edu> wrote:\n\n> 示範教授 老師您好，\n>\n> 附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n>   • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n>\n> 請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n>   - 內容正確：回覆「確認無誤」即可。\n>   - 需要修改：請寫明要修改的地方。\n>\n> 附件4 版本：0123456789\n> — 示範學系系辦\n",
+      "expected_intent": "modify",
+      "expected_has_reservation": false,
+      "expected_modifications": [
+        {
+          "row": "",
+          "field": "日期",
+          "new_value": "12/27"
+        }
+      ],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q02",
+      "category": "引用+疑問",
+      "quote_style": "gmail_zh",
+      "content_type": "text/plain",
+      "professor_reply": "請問口試可以改成線上嗎？",
+      "raw_body": "請問口試可以改成線上嗎？\n\n於 2026年10月8日 週四 上午10:02寫道：\n\n> 示範教授 老師您好，\n>\n> 附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n>   • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n>\n> 請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n>   - 內容正確：回覆「確認無誤」即可。\n>   - 需要修改：請寫明要修改的地方。\n>\n> 附件4 版本：0123456789\n> — 示範學系系辦\n",
+      "expected_intent": "question",
+      "expected_has_reservation": false,
+      "expected_modifications": [],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q03",
+      "category": "引用+自動回覆",
+      "quote_style": "outlook_original",
+      "content_type": "text/plain",
+      "professor_reply": "本人 10/25 前出國開會，屆時再回覆。（自動回覆）",
+      "raw_body": "本人 10/25 前出國開會，屆時再回覆。（自動回覆）\n\n-----Original Message-----\nFrom: office@example.edu\nSent: Thursday, October 8, 2026 10:02 AM\nSubject: [口試附件4確認 A4-0a1b2c3d]\n\n示範教授 老師您好，\n\n附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n\n請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n  - 內容正確：回覆「確認無誤」即可。\n  - 需要修改：請寫明要修改的地方。\n\n附件4 版本：0123456789\n— 示範學系系辦\n",
+      "expected_intent": "auto_reply",
+      "expected_has_reservation": false,
+      "expected_modifications": [],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q04",
+      "category": "引用+修改",
+      "quote_style": "outlook_zh_header",
+      "content_type": "text/plain",
+      "professor_reply": "地點改為工程館 A521",
+      "raw_body": "地點改為工程館 A521\n\n寄件者： 示範學系系辦 <office@example.edu>\n寄件日期： 2026年10月8日 上午 10:02\n收件者： 示範教授\n主旨： [口試附件4確認 A4-0a1b2c3d]\n\n示範教授 老師您好，\n\n附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n\n請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n  - 內容正確：回覆「確認無誤」即可。\n  - 需要修改：請寫明要修改的地方。\n\n附件4 版本：0123456789\n— 示範學系系辦\n",
+      "expected_intent": "modify",
+      "expected_has_reservation": false,
+      "expected_modifications": [
+        {
+          "row": "",
+          "field": "地點",
+          "new_value": "工程館 A521"
+        }
+      ],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q05",
+      "category": "HTML引用+修改",
+      "quote_style": "html_gmail_quote",
+      "content_type": "text/html",
+      "professor_reply": "示範學生乙那組改成線上口試",
+      "raw_body": "<div dir=\"ltr\"><div>示範學生乙那組改成線上口試</div></div><br><div class=\"gmail_quote\"><div dir=\"ltr\" class=\"gmail_attr\">於 2026年10月8日 週四 上午10:02寫道：<br></div><blockquote class=\"gmail_quote\"><div>示範教授 老師您好，</div><div><br></div><div>附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：</div><div>  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體</div><div><br></div><div>請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：</div><div>  - 內容正確：回覆「確認無誤」即可。</div><div>  - 需要修改：請寫明要修改的地方。</div><div><br></div><div>附件4 版本：0123456789</div><div>— 示範學系系辦</div></blockquote></div>",
+      "expected_intent": "modify",
+      "expected_has_reservation": false,
+      "expected_modifications": [
+        {
+          "row": "示範學生乙",
+          "field": "方式",
+          "new_value": "線上"
+        }
+      ],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q06",
+      "category": "HTML引用+疑問",
+      "quote_style": "html_blockquote",
+      "content_type": "text/html",
+      "professor_reply": "這個時間我有課，能不能改到下午？",
+      "raw_body": "<div><div>這個時間我有課，能不能改到下午？</div></div><blockquote type=\"cite\"><div>示範教授 老師您好，</div><div><br></div><div>附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：</div><div>  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體</div><div><br></div><div>請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：</div><div>  - 內容正確：回覆「確認無誤」即可。</div><div>  - 需要修改：請寫明要修改的地方。</div><div><br></div><div>附件4 版本：0123456789</div><div>— 示範學系系辦</div></blockquote>",
+      "expected_intent": "question",
+      "expected_has_reservation": false,
+      "expected_modifications": [],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q07",
+      "category": "HTML引用+確認",
+      "quote_style": "html_outlook",
+      "content_type": "text/html",
+      "professor_reply": "確認無誤，謝謝",
+      "raw_body": "<div><div>確認無誤，謝謝</div></div><hr><div id=\"divRplyFwdMsg\"><b>寄件者：</b> 示範學系系辦<br><b>寄件日期：</b> 2026年10月8日 上午 10:02<br><b>主旨：</b> [口試附件4確認 A4-0a1b2c3d]</div><div><div>示範教授 老師您好，</div><div><br></div><div>附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：</div><div>  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體</div><div><br></div><div>請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：</div><div>  - 內容正確：回覆「確認無誤」即可。</div><div>  - 需要修改：請寫明要修改的地方。</div><div><br></div><div>附件4 版本：0123456789</div><div>— 示範學系系辦</div></div>",
+      "expected_intent": "confirm",
+      "expected_has_reservation": false,
+      "expected_modifications": [],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q08",
+      "category": "引用+確認",
+      "quote_style": "gmail_en",
+      "content_type": "text/plain",
+      "professor_reply": "好的，沒問題",
+      "raw_body": "好的，沒問題\n\nOn Thu, Oct 8, 2026 at 10:02 AM 示範學系系辦 <office@example.edu> wrote:\n\n> 示範教授 老師您好，\n>\n> 附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n>   • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n>\n> 請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n>   - 內容正確：回覆「確認無誤」即可。\n>   - 需要修改：請寫明要修改的地方。\n>\n> 附件4 版本：0123456789\n> — 示範學系系辦\n",
+      "expected_intent": "confirm",
+      "expected_has_reservation": false,
+      "expected_modifications": [],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q09",
+      "category": "引用+修改",
+      "quote_style": "gt_only",
+      "content_type": "text/plain",
+      "professor_reply": "委員名單少了一位，請補上示範委員丙",
+      "raw_body": "委員名單少了一位，請補上示範委員丙\n\n> 示範教授 老師您好，\n>\n> 附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n>   • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n>\n> 請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n>   - 內容正確：回覆「確認無誤」即可。\n>   - 需要修改：請寫明要修改的地方。\n>\n> 附件4 版本：0123456789\n> — 示範學系系辦\n",
+      "expected_intent": "modify",
+      "expected_has_reservation": false,
+      "expected_modifications": [
+        {
+          "row": "",
+          "field": "委員",
+          "new_value": "示範委員丙"
+        }
+      ],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q10",
+      "category": "引用+有保留的確認",
+      "quote_style": "gmail_zh",
+      "content_type": "text/plain",
+      "professor_reply": "沒問題，但日期好像不對？我記得是 12/25 不是 12/20",
+      "raw_body": "沒問題，但日期好像不對？我記得是 12/25 不是 12/20\n\n於 2026年10月8日 週四 上午10:02寫道：\n\n> 示範教授 老師您好，\n>\n> 附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n>   • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n>\n> 請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n>   - 內容正確：回覆「確認無誤」即可。\n>   - 需要修改：請寫明要修改的地方。\n>\n> 附件4 版本：0123456789\n> — 示範學系系辦\n",
+      "expected_intent": "confirm",
+      "expected_has_reservation": true,
+      "expected_modifications": [],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q11",
+      "category": "HTML引用+助理代回",
+      "quote_style": "html_gmail_quote",
+      "content_type": "text/html",
+      "professor_reply": "老師目前出國開會，我是老師的助理，收到後會轉達老師",
+      "raw_body": "<div dir=\"ltr\"><div>老師目前出國開會，我是老師的助理，收到後會轉達老師</div></div><br><div class=\"gmail_quote\"><div dir=\"ltr\" class=\"gmail_attr\">於 2026年10月8日 週四 上午10:02寫道：<br></div><blockquote class=\"gmail_quote\"><div>示範教授 老師您好，</div><div><br></div><div>附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：</div><div>  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體</div><div><br></div><div>請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：</div><div>  - 內容正確：回覆「確認無誤」即可。</div><div>  - 需要修改：請寫明要修改的地方。</div><div><br></div><div>附件4 版本：0123456789</div><div>— 示範學系系辦</div></blockquote></div>",
+      "expected_intent": "auto_reply",
+      "expected_has_reservation": false,
+      "expected_modifications": [],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q12",
+      "category": "引用+無關",
+      "quote_style": "outlook_original",
+      "content_type": "text/plain",
+      "professor_reply": "請問下週系務會議改到幾點？",
+      "raw_body": "請問下週系務會議改到幾點？\n\n-----Original Message-----\nFrom: office@example.edu\nSent: Thursday, October 8, 2026 10:02 AM\nSubject: [口試附件4確認 A4-0a1b2c3d]\n\n示範教授 老師您好，\n\n附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n\n請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n  - 內容正確：回覆「確認無誤」即可。\n  - 需要修改：請寫明要修改的地方。\n\n附件4 版本：0123456789\n— 示範學系系辦\n",
+      "expected_intent": "unrelated",
+      "expected_has_reservation": false,
+      "expected_modifications": [],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q13",
+      "category": "行間插話",
+      "quote_style": "inline_interleaved",
+      "content_type": "text/plain",
+      "professor_reply": "這邊日期不對，應該是 12/25",
+      "raw_body": "> 請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n> - 內容正確：回覆「確認無誤」即可。\n\n這邊日期不對，應該是 12/25\n\n> 附件4 版本：0123456789\n",
+      "expected_intent": "modify",
+      "expected_has_reservation": false,
+      "expected_modifications": [
+        {
+          "row": "",
+          "field": "日期",
+          "new_value": "12/25"
+        }
+      ],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q14",
+      "category": "底部回覆（清理層已知限制）",
+      "quote_style": "bottom_post",
+      "content_type": "text/plain",
+      "professor_reply": "日期要改成 1/5",
+      "raw_body": "On Thu, Oct 8, 2026 at 10:02 AM 示範學系系辦 <office@example.edu> wrote:\n\n> 示範教授 老師您好，\n>\n> 附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n>   • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n>\n> 請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n>   - 內容正確：回覆「確認無誤」即可。\n>   - 需要修改：請寫明要修改的地方。\n>\n> 附件4 版本：0123456789\n> — 示範學系系辦\n\n日期要改成 1/5\n",
+      "expected_intent": "modify",
+      "expected_has_reservation": false,
+      "expected_modifications": [
+        {
+          "row": "",
+          "field": "日期",
+          "new_value": "1/5"
+        }
+      ],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q15",
+      "category": "無標記貼上原信（清理層已知限制）",
+      "quote_style": "no_marker_paste",
+      "content_type": "text/plain",
+      "professor_reply": "時間改下午三點",
+      "raw_body": "時間改下午三點\n\n示範教授 老師您好，\n\n附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：\n  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體\n\n請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：\n  - 內容正確：回覆「確認無誤」即可。\n  - 需要修改：請寫明要修改的地方。\n\n附件4 版本：0123456789\n— 示範學系系辦\n",
+      "expected_intent": "modify",
+      "expected_has_reservation": false,
+      "expected_modifications": [
+        {
+          "row": "",
+          "field": "時間",
+          "new_value": "下午三點"
+        }
+      ],
+      "source": "synthetic"
+    },
+    {
+      "id": "Q16",
+      "category": "巢狀引用（第二輪重寄）",
+      "quote_style": "html_nested_blockquote",
+      "content_type": "text/html",
+      "professor_reply": "請問可以改成線上口試嗎？",
+      "raw_body": "<div><div>請問可以改成線上口試嗎？</div></div><blockquote type=\"cite\"><div>（第二輪）附件4 已更新，請再次核對。</div><blockquote type=\"cite\"><div>（第一輪原信）</div></blockquote><div>示範教授 老師您好，</div><div><br></div><div>附上 115學年度第1學期 您指導學生的學位口試一覽表（附件4），內容如下，敬請核對：</div><div>  • 115學年度第1學期　2026-12-20　碩士班：示範學生甲、示範學生乙　實體</div><div><br></div><div>請於 2026-10-20 前直接回覆本信（請保留主旨中的代碼 A4-0a1b2c3d）：</div><div>  - 內容正確：回覆「確認無誤」即可。</div><div>  - 需要修改：請寫明要修改的地方。</div><div><br></div><div>附件4 版本：0123456789</div><div>— 示範學系系辦</div></blockquote>",
+      "expected_intent": "question",
+      "expected_has_reservation": false,
+      "expected_modifications": [],
+      "source": "synthetic"
+    }
+  ]
+}

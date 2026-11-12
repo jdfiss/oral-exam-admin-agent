@@ -1,0 +1,25 @@
+{
+  "case_key": "1151-S002",
+  "version": 1,
+  "submitted_at": "2026-09-15 09:05:00",
+  "status": "已通過",
+  "review_mode": "simulated",
+  "reviewed_at": "2026-09-15 09:05:01",
+  "term": "1151",
+  "student_id": "S002",
+  "student_name": "展示用學生乙",
+  "student_email": "demo-s002@example.invalid",
+  "college": "工學院",
+  "department": "示範學系碩士班",
+  "thesis_title": "物聯網安全協定之研究",
+  "exam_date": "",
+  "exam_start_time": "",
+  "exam_end_time": "",
+  "exam_location": "",
+  "exam_mode": "",
+  "advisors": ["展示委員F"],
+  "advisor_emails": {"展示委員F": "demo-advisor-f@example.invalid"},
+  "committees": [
+    {"name": "展示委員D", "unit": "樣本大學電機系", "title": "教授", "qualification": "校外委員"}
+  ]
+}

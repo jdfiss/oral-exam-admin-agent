@@ -1,0 +1,27 @@
+{
+  "case_key": "1151-S001",
+  "version": 1,
+  "submitted_at": "2026-09-15 09:00:00",
+  "status": "已通過",
+  "review_mode": "simulated",
+  "reviewed_at": "2026-09-15 09:00:01",
+  "term": "1151",
+  "student_id": "S001",
+  "student_name": "展示用學生甲",
+  "student_email": "demo-s001@example.invalid",
+  "college": "工學院",
+  "department": "示範學系碩士班",
+  "thesis_title": "基於深度學習之影像辨識系統",
+  "exam_date": "2026-10-01",
+  "exam_start_time": "14:00",
+  "exam_end_time": "16:00",
+  "exam_location": "工程館 A301",
+  "exam_mode": "",
+  "advisors": ["展示委員C"],
+  "advisor_emails": {"展示委員C": "demo-advisor-c@example.invalid"},
+  "committees": [
+    {"name": "展示委員A", "unit": "國立範例科技大學電子工程學系", "title": "教授", "qualification": "校外委員", "email": "demo-member-a@example.invalid"},
+    {"name": "展示委員B", "unit": "示範大學示範學系", "title": "副教授", "qualification": "校內委員", "email": "demo-member-b@example.invalid"},
+    {"name": "展示委員C", "unit": "示範大學示範學系", "title": "教授", "qualification": "指導教授", "email": "demo-member-c@example.invalid"}
+  ]
+}

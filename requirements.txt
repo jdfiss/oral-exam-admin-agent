@@ -1,0 +1,12 @@
+openpyxl>=3.1      # 讀寫 .xlsx（附件2/6、主檔、委員資料）
+python-docx>=1.1   # 讀寫 .docx（附件4）
+xlrd>=2.0          # 讀舊版 .xls（歷史附件3 Excel，人工匯入用）
+Flask>=3.0         # koushi/web：學生填表＋系辦介面
+waitress>=3.0      # 正式啟動網頁（deploy/start-web.ps1）；開發時用 Flask 內建伺服器即可
+pytest>=8.0        # 開發／整合測試
+Pillow>=10.0       # 測試用：產生含圖片的 Excel 範本（openpyxl 插圖需要）
+
+# 系統依賴：附件4 的官方 .doc 範本由 LibreOffice headless 自動轉成 .docx。
+# 不需要 Microsoft Office，也不使用人工另存。
+
+openai>=1.0       # 教授回信即時 AI 判讀

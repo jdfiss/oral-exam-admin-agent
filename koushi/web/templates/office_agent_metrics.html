@@ -1,0 +1,97 @@
+{% extends "office_base.html" %}
+{% block title %}AI 成效統計{% endblock %}
+{% block breadcrumb %}AI 成效統計{% endblock %}
+{% macro pct(v) %}{{ '—' if v is none else '%.1f%%'|format(v * 100) }}{% endmacro %}
+{% macro num(v, digits=0) %}{{ '—' if v is none else ('{:,.' ~ digits ~ 'f}').format(v) }}{% endmacro %}
+{% block extra_head %}
+<style>
+    .trace-filter{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+    .trace-filter label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+    .trace-filter input{padding:6px 8px;border:1px solid var(--line);border-radius:2px;font:inherit;background:white}
+    .metric-table td small{color:var(--muted)}
+    .metric-defs{font-size:12px;color:var(--muted);margin:6px 0 0 18px}
+    .metric-defs li{margin:3px 0}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>AI 成效統計</h1>
+        <p>由目前狀態目錄的 agent 軌跡即時計算（共 {{ events }} 筆軌跡事件），與評測程式 <code>eval/agent_metrics.py</code> 同一套定義。不需要標準答案，所以量的是流程有沒有走完、有沒有出錯、花多少；「答得對不對」請看 eval/README.md 的情境評測。目前模型：<b>{{ active_model }}</b>。</p>
+    </div>
+    <a class="row-action" href="{{ url_for('office_agent_trace') }}">看每一次執行的軌跡</a>
+</div>
+
+<div class="case-section">
+    <form method="get" action="{{ url_for('office_agent_metrics') }}" class="trace-filter">
+        <div><label for="m-from">開始日</label><input type="date" id="m-from" name="date_from" value="{{ filters.date_from }}"></div>
+        <div><label for="m-to">結束日</label><input type="date" id="m-to" name="date_to" value="{{ filters.date_to }}"></div>
+        <div><button type="submit">套用期間</button> <a class="row-action" href="{{ url_for('office_agent_metrics') }}">全部期間</a></div>
+    </form>
+</div>
+
+<div class="case-section todo">
+    <div class="section-heading"><h2>重點：人工把關與防護</h2></div>
+    <table>
+        <thead><tr><th scope="col">指標</th><th scope="col" class="num">數值</th><th scope="col">意義</th></tr></thead>
+        <tbody>
+            <tr><td>人工介入率</td><td class="num">{{ pct(highlights.human_rate) }}</td><td class="note">全部 {{ highlights.tasks }} 個任務中，結果交給專員核准或判斷的比例。涉及財務、資格、個資與案件狀態的動作一律由專員決定。</td></tr>
+            <tr><td>自我修正</td><td class="num">{{ highlights.repairs }} 次</td><td class="note">模型輸出沒通過程式檢核、系統回饋原因請模型重來（{{ highlights.repaired_tasks }} 個任務）；仍不通過就轉人工。</td></tr>
+            <tr><td>疑似夾帶指令的來信</td><td class="num">{{ highlights.injections }} 封</td><td class="note">信中出現「忽略以上指令」等字句時標示疑似注入、不自動執行任何動作（其中自動執行 {{ highlights.injections_auto }} 封）。</td></tr>
+        </tbody>
+    </table>
+    {% if offline %}<p class="footnote" style="margin:8px 16px 12px;">目前是<b>離線備援</b>（規則替身，不連網）：不回報 token、成本為「—」，延遲也沒有參考價值，請以上方人工介入、自我修正與注入攔截判讀 agent 行為。</p>{% endif %}
+</div>
+
+<div class="case-section">
+    <div class="section-heading"><h2>各 agent 指標</h2></div>
+    {% if metrics %}
+    <div class="table-scroll"><table class="metric-table">
+        <thead><tr>
+            <th scope="col">Agent</th><th scope="col" class="num">任務數</th><th scope="col" class="num">完成率</th>
+            <th scope="col" class="num">有效產出率</th><th scope="col" class="num">人工介入率</th>
+            <th scope="col" class="num">模型失敗→轉人工</th><th scope="col" class="num">工具成功率</th><th scope="col" class="num">重試</th><th scope="col" class="num">自我修正<br><small>次數／成功率</small></th>
+            <th scope="col" class="num">模型延遲 ms<br><small>平均／最大</small></th><th scope="col" class="num">任務延遲 ms<br><small>平均／最大</small></th>
+            <th scope="col" class="num">token<br><small>入／出</small></th><th scope="col" class="num">估計成本 US$</th>
+        </tr></thead>
+        <tbody>
+        {% for agent, m in metrics.items() %}
+        <tr>
+            <td>{{ agents.get(agent, agent) }}<br><small>{% for model in m.models %}{{ model }}{% if not loop.last %}、{% endif %}{% else %}未呼叫模型{% endfor %}</small></td>
+            <td class="num">{{ m.tasks }}</td>
+            <td class="num">{{ pct(m.completion_rate) }}</td>
+            <td class="num">{{ pct(m.useful_output_rate) }}</td>
+            <td class="num">{{ pct(m.human_intervention_rate) }}</td>
+            <td class="num">{{ pct(m.llm_fallback_rate) }}<br><small>{{ m.llm_errors }}／{{ m.llm_calls }} 次呼叫</small></td>
+            <td class="num">{{ pct(m.tool_success_rate) }}<br><small>{{ m.tool_calls - m.tool_errors }}／{{ m.tool_calls }}</small></td>
+            <td class="num">{{ m.retries }}</td>
+            <td class="num">{{ m.repairs }}<br><small>{{ pct(m.repair_success_rate) }}</small></td>
+            <td class="num">{{ num(m.llm_latency_ms_mean, 1) }}／{{ num(m.llm_latency_ms_max) }}</td>
+            <td class="num">{{ num(m.task_latency_ms_mean, 1) }}／{{ num(m.task_latency_ms_max) }}</td>
+            <td class="num">{% if m.calls_with_usage %}{{ num(m.prompt_tokens) }}／{{ num(m.completion_tokens) }}{% else %}—{% endif %}</td>
+            <td class="num">{% if m.estimated_cost_usd is not none %}{{ '%.6f'|format(m.estimated_cost_usd) }}{% else %}—{% endif %}{% if m.uncosted_calls %}<br><small>{{ m.uncosted_calls }} 次無價目</small>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+    {% set with_errors = metrics.items()|selectattr('1.error_categories')|list %}
+    {% if with_errors %}
+    <p class="footnote keep" style="margin-top:10px;">錯誤分類：{% for agent, m in with_errors %}{{ agents.get(agent, agent) }}——{% for k, v in m.error_categories.items() %}{{ k }} {{ v }}{% if not loop.last %}、{% endif %}{% endfor %}{% if not loop.last %}；{% endif %}{% endfor %}</p>
+    {% endif %}
+    {% else %}
+    <p class="footnote">{% if filters.date_from or filters.date_to %}這段期間沒有 agent 執行紀錄。{% else %}目前還沒有任何 agent 執行紀錄，指標無法計算。信箱 agent 讀信、「AI 建議」頁產生建議或問答助理回答後即會出現。{% endif %}</p>
+    {% endif %}
+</div>
+
+<div class="case-section">
+    <div class="section-heading"><h2>指標定義</h2></div>
+    <ul class="metric-defs">
+        {% for key, text in definitions.items() %}<li>{{ text }}</li>{% endfor %}
+    </ul>
+    <p class="footnote" style="margin-top:8px;">各 agent 的「完成」與「有效產出」：</p>
+    <ul class="metric-defs">
+        {% for agent, m in metrics.items() %}<li>{{ agents.get(agent, agent) }}：{{ m.task_rule }}</li>{% else %}<li>（有執行紀錄後顯示）</li>{% endfor %}
+    </ul>
+    <p class="footnote keep" style="margin-top:8px;">價目（估計值，US$／每百萬 token；{{ prices_as_of }}）：{% for model, p in prices.items() %}{{ model }} 輸入 {{ p.input }}／輸出 {{ p.output }}{% if not loop.last %}；{% endif %}{% endfor %}。成本只是 token × 價目的估算，實際金額以供應商帳單為準；離線備援與假模型沒有用量，也沒有成本。</p>
+</div>
+{% endblock %}

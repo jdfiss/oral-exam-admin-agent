@@ -1,0 +1,36 @@
+{# 工作總覽的月曆區塊；整頁渲染時被 include，翻月時由 office.js 單獨抓 /office/overview/calendar 換上去。 #}
+<div class="calendar-wrap" data-month="{{ cal.month }}">
+<div class="calendar-nav">
+    <a class="btn" data-cal-month="{{ cal.prev }}" href="{{ url_for('office_overview', view='calendar', month=cal.prev) }}" aria-label="上一個月">上個月</a>
+    <h3>{{ cal.label }}</h3>
+    <a class="btn" data-cal-month="{{ cal.next }}" href="{{ url_for('office_overview', view='calendar', month=cal.next) }}" aria-label="下一個月">下個月</a>
+    <a class="text-button" data-cal-month="" href="{{ url_for('office_overview', view='calendar') }}">回到本月</a>
+</div>
+<div class="table-scroll">
+    <table class="calendar">
+        <thead>
+            <tr>{% for name in ['日', '一', '二', '三', '四', '五', '六'] %}<th scope="col">{{ name }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+            {% for week in cal.weeks %}
+            <tr>
+                {% for day in week %}
+                <td class="{{ '' if day.in_month else 'other-month' }}{{ ' busy' if day.cases|length > 1 else '' }}">
+                    <span class="day-number">{{ day.date.day }}{% if day.cases|length > 1 %} <small class="busy-tag">{{ day.cases|length }} 場</small>{% endif %}</span>
+                    {% for c in day.cases %}
+                    <button type="button" class="cal-case{{ ' revoked' if c.status == '已撤銷' else '' }}" data-case="{{ c.id }}" aria-label="查看 {{ c.student_name or c.student_id }} 案件（{{ day.date.isoformat() }}）">
+                        <span class="dot {{ 'missing' if c.deficiency_count or c.status in ['未填寫', '附件2查無'] else ('neutral' if c.status == '已撤銷' else 'ready') }}" aria-hidden="true"></span>{{ c.student_name or c.student_id }}{% if c.status == '已撤銷' %}（已撤銷）{% endif %}
+                    </button>
+                    {% endfor %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<footer class="table-footer">
+    <span><span class="dot ready" aria-hidden="true"></span>資料齊全　<span class="dot missing" aria-hidden="true"></span>有缺件或未填寫　<span class="dot neutral" aria-hidden="true"></span>已撤銷</span>
+    {% if cal.undated %}<span class="overdue-text">{{ cal.undated }} 筆案件尚未填口試日期，不會出現在月曆上，仍列在清單視圖中。</span>{% endif %}
+</footer>
+</div>

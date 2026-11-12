@@ -1,0 +1,35 @@
+{% extends "office_base.html" %}
+{% block title %}AI 開關{% endblock %}
+{% block breadcrumb %}AI 開關{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>AI 開關</h1></div></div>
+
+<div class="panel card-todo" id="ai-switch" style="border-color:{{ '#e0b4ac' if ai_stop_reason else 'var(--line)' }};">
+    <h2>AI 總開關（緊急停止）</h2>
+    <p style="margin-top:10px;">目前狀態：<b>{{ '已停止 — 全部改由人工處理' if ai_stop_reason else '運作中' }}</b>{% if ai_stop_reason %}（{{ ai_stop_reason }}）{% endif %}</p>
+    <p class="footnote">停止後所有 AI 不再運作，來信與建議全部改由你人工處理；建檔、通知、催件照常。{% if judge_mode %}<b>{{ who }}模式：只影響本輪示範資料，不影響正式環境。</b>{% endif %}</p>
+    <details class="page-more"><summary>停止後會發生什麼（詳細）</summary>
+        <p>停止後：不呼叫任何模型（信箱 agent、教授回信判讀、AI 建議、問答助理），信箱 agent 不自動回信也不自動記錄異動申請，教授回信不會自動放行；規則流程照常。發生資安事件、模型異常或疑似提示注入時請先停止，再通報。切換會寫入稽核紀錄。</p>
+        {% if judge_mode %}<p>{{ who }}模式：這個開關只影響本輪示範資料（本輪狀態目錄），不影響任何正式環境；重設情境後恢復為運作中。</p>{% endif %}
+    </details>
+    {% if ai_stop_env %}<p class="footnote">維運人員以環境變數 KOUSHI_AI_DISABLED 停用中，須由維運人員移除後才能恢復。</p>
+    {% else %}
+    <form method="post" action="{{ url_for('ai_switch_toggle') }}" class="settings-grid" style="margin-top:12px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="disabled" value="{{ '0' if ai_switch_status.disabled else '1' }}">
+        <div><label for="ai_handler">處理人</label><input id="ai_handler" name="handler" value="{{ (who) if is_judge else session.get('handler', '') }}" {{ 'readonly' if is_judge else '' }} required></div>
+        <div><label for="ai_reason">原因（必填）</label><input id="ai_reason" name="reason" required placeholder="{{ '例：模型恢復正常，已確認無異常' if ai_switch_status.disabled else '例：疑似提示注入，先停用 AI' }}"></div>
+        <div style="align-self:end;"><button type="submit" class="{{ 'primary' if ai_switch_status.disabled else 'danger' }}">{{ '恢復 AI 功能' if ai_switch_status.disabled else '立即停止所有 AI' }}</button></div>
+    </form>
+    {% endif %}
+</div>
+
+<form method="post" action="{{ url_for('office_ai_settings') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="panel"><h2>來信自動收件通知</h2><div class="settings-grid">
+<div><label for="mailbox_auto_reply_enabled">自動收件通知</label><select id="mailbox_auto_reply_enabled" name="mailbox_auto_reply_enabled"><option value="0" {{ 'selected' if not settings.mailbox_auto_reply_enabled else '' }}>關閉</option><option value="1" {{ 'selected' if settings.mailbox_auto_reply_enabled else '' }}>啟用</option></select></div></div><details class="tiny-more explain"><summary>說明</summary><p>只對登記信箱的教授（要求修改、提問、時程異動）與學生（申請、提問、時程異動）寄固定範本的「系辦已收到」通知，每位寄件者每天最多一封；自動回覆、無關信件與委員來信一律不回。其他回信都要專員在「信箱 agent」頁核准後才寄。</p></details></div>
+    {% if assistant_llm_configured %}<div class="panel"><h2>系辦問答助理</h2><div class="settings-grid">
+<div><label for="assistant_enabled">問答助理</label><select id="assistant_enabled" name="assistant_enabled"><option value="1" {{ 'selected' if settings.assistant_enabled else '' }}>啟用</option><option value="0" {{ 'selected' if not settings.assistant_enabled else '' }}>關閉</option></select></div></div><details class="tiny-more explain"><summary>說明</summary><p>唯讀查詢案件狀態；案件與人名以代號送給模型，不送個資。</p></details></div>{% endif %}
+    <div class="actions"><button type="submit" class="primary" {{ ('disabled title="' ~ who ~ '模式不可用"') if is_judge else '' }}>儲存</button></div>
+</form>
+{% endblock %}

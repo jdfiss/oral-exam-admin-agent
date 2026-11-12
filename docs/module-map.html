@@ -1,0 +1,1473 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>口試系統｜行政流程與模組關係圖</title>
+  <style>
+    :root {
+      --paper: #f2f5f6;
+      --white: #ffffff;
+      --ink: #183241;
+      --muted: #526874;
+      --line: #c5d2d8;
+      --blue: #126d88;
+      --blue-soft: #e1f0f3;
+      --gold: #a5671f;
+      --gold-soft: #f8edda;
+      --purple: #705992;
+      --purple-soft: #eee9f5;
+      --red: #a84942;
+      --red-soft: #f8e9e5;
+      --green: #3f7d4a;
+      --green-soft: #e6f2e8;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+      line-height: 1.65;
+    }
+    button { font: inherit; }
+    a { color: var(--blue); text-underline-offset: 3px; }
+    .topline { height: 7px; background: linear-gradient(90deg, var(--blue) 0 47%, var(--gold) 47% 70%, var(--purple) 70% 100%); }
+    header {
+      max-width: 1480px;
+      margin: auto;
+      padding: 54px 46px 30px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 350px);
+      gap: 48px;
+      align-items: end;
+    }
+    .kicker { color: var(--blue); font-size: .86rem; font-weight: 800; letter-spacing: .06em; }
+    h1 { font-size: clamp(2.3rem, 4vw, 4.5rem); line-height: 1.15; letter-spacing: -.045em; margin: 10px 0 16px; }
+    .lead { font-size: 1.12rem; max-width: 61ch; margin: 0; color: #304d5d; }
+    .hero-note {
+      border-left: 5px solid var(--gold);
+      padding: 10px 0 10px 20px;
+      color: var(--muted);
+      font-size: .96rem;
+    }
+    .hero-note strong { display: block; color: var(--ink); font-size: 1.05rem; margin-bottom: 5px; }
+    .workspace {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 0 46px 70px;
+      display: grid;
+      grid-template-columns: 266px minmax(0, 1fr);
+      gap: 18px;
+    }
+    .rail {
+      background: var(--ink);
+      color: #f7fafb;
+      padding: 25px 18px 22px;
+      align-self: start;
+      position: sticky;
+      top: 18px;
+      max-height: calc(100vh - 36px);
+      overflow-y: auto;
+    }
+    .rail h2 { font-size: 1.08rem; margin: 0 10px 12px; letter-spacing: -.02em; }
+    .rail p { color: #b8cbd4; font-size: .88rem; margin: 0 10px 23px; }
+    .flow-list { display: grid; gap: 5px; }
+    .flow-button {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      width: 100%;
+      background: transparent;
+      color: #d4e1e7;
+      border: 1px solid transparent;
+      border-left: 3px solid transparent;
+      padding: 11px 10px;
+      text-align: left;
+      cursor: pointer;
+      line-height: 1.35;
+    }
+    .flow-button:hover { background: #254858; color: white; }
+    .flow-button:focus-visible, .node:focus-visible {
+      outline: 3px solid #e6aa49;
+      outline-offset: 3px;
+    }
+    .flow-button[aria-pressed="true"] {
+      background: #2d5668;
+      color: white;
+      border-left-color: #f1b65c;
+      font-weight: 700;
+    }
+    .flow-number { font-size: .78rem; color: #aac9d8; font-variant-numeric: tabular-nums; }
+    .rail-foot {
+      border-top: 1px solid #426373;
+      padding: 17px 10px 0;
+      margin-top: 24px;
+      font-size: .83rem;
+      color: #bbd1dc;
+    }
+    .rail-nav { border-top: 1px solid #426373; margin-top: 18px; padding: 14px 10px 0; }
+    .rail-nav strong { display: block; color: #e0edf2; font-size: .83rem; margin-bottom: 6px; }
+    .rail-nav a { display: block; color: #bcdbe8; font-size: .82rem; padding: 3px 0; }
+    .rail-nav a:focus-visible { outline: 3px solid #e6aa49; outline-offset: 2px; }
+    .content { min-width: 0; }
+    .map-shell {
+      border: 1px solid #b8c9d1;
+      background: var(--white);
+      box-shadow: 0 10px 24px rgba(24, 50, 65, .045);
+    }
+    .map-heading {
+      min-height: 72px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      padding: 13px 22px;
+    }
+    .map-heading h2 { font-size: 1.12rem; margin: 0; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: .79rem; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 10px; height: 10px; display: inline-block; }
+    .swatch.entry { background: var(--blue); }
+    .swatch.core { background: var(--gold); }
+    .swatch.work { background: var(--purple); }
+    .swatch.data { background: var(--red); }
+    .map-scroll { overflow-x: auto; background-image: radial-gradient(#dce5e9 1px, transparent 1px); background-size: 22px 22px; }
+    svg { display: block; width: 100%; min-width: 1020px; height: auto; }
+    .edge { fill: none; stroke: #b8cbd4; stroke-width: 2; opacity: .5; transition: opacity .16s, stroke .16s, stroke-width .16s; }
+    .edge.active { opacity: 1; stroke: var(--blue); stroke-width: 3.5; }
+    .edge.quiet { opacity: .16; }
+    .node { cursor: pointer; }
+    .node rect { fill: white; stroke: #9ab1bc; stroke-width: 1.5; transition: fill .16s, stroke .16s, opacity .16s; }
+    .node .bar { stroke: none; }
+    .node .label { fill: var(--ink); font-size: 19px; font-weight: 800; }
+    .node .path { fill: #607582; font-size: 12px; font-family: Consolas, "SFMono-Regular", monospace; }
+    .node.active rect.main { stroke: var(--blue); stroke-width: 3; fill: #f5fcfd; }
+    .node.quiet { opacity: .36; }
+    .node:hover rect.main { stroke: var(--blue); stroke-width: 2.5; }
+    .node.entry .bar { fill: var(--blue); }
+    .node.core .bar { fill: var(--gold); }
+    .node.work .bar { fill: var(--purple); }
+    .node.data .bar { fill: var(--red); }
+    .app-halo { fill: var(--gold-soft); stroke: #e6cb9c; stroke-width: 1; }
+    .lane-label { fill: #6b808a; font-size: 13px; font-weight: 700; }
+    .process-section { margin-bottom: 38px; }
+    .process-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(240px, 380px);
+      gap: 28px;
+      align-items: end;
+      border-bottom: 2px solid var(--ink);
+      padding: 0 0 17px;
+    }
+    .process-header h2 { margin: 0; font-size: 1.65rem; letter-spacing: -.03em; }
+    .process-header p { margin: 0; color: var(--muted); font-size: .91rem; }
+    .process-status {
+      border-left: 4px solid var(--green);
+      padding: 8px 0 8px 15px;
+      color: #3d5c48;
+      background: linear-gradient(90deg, var(--green-soft), transparent 78%);
+    }
+    .process-status strong { color: #285f35; }
+    .process-tabs {
+      display: flex;
+      overflow-x: auto;
+      border: 1px solid #b8c9d1;
+      border-bottom: 0;
+      background: #e5ecef;
+      margin-top: 20px;
+      scrollbar-width: thin;
+    }
+    .process-tab {
+      flex: 0 0 auto;
+      border: 0;
+      border-right: 1px solid #c2d0d6;
+      border-top: 4px solid transparent;
+      background: transparent;
+      color: #405c69;
+      padding: 11px 17px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: .88rem;
+    }
+    .process-tab:hover { background: #f5f8f9; color: var(--ink); }
+    .process-tab[aria-selected="true"] {
+      border-top-color: var(--blue);
+      background: white;
+      color: var(--ink);
+    }
+    .process-tab:focus-visible { outline: 3px solid #e6aa49; outline-offset: -4px; }
+    .process-map-shell { border: 1px solid #b8c9d1; background: white; }
+    .process-map-heading {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px 20px;
+      min-height: 66px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+    .process-map-heading h3 { margin: 0; font-size: 1.08rem; }
+    .process-legend { display: flex; flex-wrap: wrap; gap: 11px; color: var(--muted); font-size: .76rem; }
+    .process-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .process-dot { width: 10px; height: 10px; display: inline-block; border-radius: 50%; }
+    .process-dot.human { background: var(--blue); }
+    .process-dot.auto { background: var(--gold); }
+    .process-dot.document { background: var(--purple); }
+    .process-dot.secure { background: var(--green); }
+    .process-dot.exception { background: var(--red); }
+    .process-canvas {
+      overflow-x: auto;
+      background-color: #f9fbfb;
+      background-image: linear-gradient(#e6ecef 1px, transparent 1px), linear-gradient(90deg, #e6ecef 1px, transparent 1px);
+      background-size: 26px 26px;
+    }
+    .process-svg { width: 100%; height: auto; }
+    .process-lane { fill: rgba(255,255,255,.72); stroke: #c7d4da; stroke-width: 1; }
+    .process-lane-title { fill: #55707d; font-size: 14px; font-weight: 800; }
+    .process-edge { fill: none; stroke: #78939f; stroke-width: 2.2; marker-end: url(#process-arrow); }
+    .process-edge.exception { stroke: var(--red); stroke-dasharray: 7 5; }
+    .process-edge.return { stroke: var(--purple); stroke-dasharray: 7 5; }
+    .process-edge-label {
+      fill: #3e5a67;
+      stroke: #f9fbfb;
+      stroke-width: 6px;
+      paint-order: stroke;
+      font-size: 13px;
+      font-weight: 800;
+      text-anchor: middle;
+    }
+    .process-node rect.main { fill: white; stroke: #9db1bb; stroke-width: 1.4; }
+    .process-node rect.bar { stroke: none; }
+    .process-node.human rect.main { fill: #f6fbfc; }
+    .process-node.human rect.bar { fill: var(--blue); }
+    .process-node.auto rect.main { fill: #fffaf1; }
+    .process-node.auto rect.bar { fill: var(--gold); }
+    .process-node.document rect.main { fill: #fbf8fd; }
+    .process-node.document rect.bar { fill: var(--purple); }
+    .process-node.secure rect.main { fill: #f5fbf6; }
+    .process-node.secure rect.bar { fill: var(--green); }
+    .process-node.exception rect.main { fill: #fff7f5; stroke: #c47e77; }
+    .process-node.exception rect.bar { fill: var(--red); }
+    .process-node.gate rect.main { fill: var(--ink); stroke: var(--ink); }
+    .process-node.gate rect.bar { fill: #e8b769; }
+    .process-node.pending rect.main { fill: #fffdf5; stroke: var(--gold); stroke-width: 2; stroke-dasharray: 7 4; }
+    .process-node.pending rect.bar { fill: var(--gold); }
+    .process-node-title { fill: var(--ink); font-size: 16px; font-weight: 800; }
+    .process-node-body { fill: #506873; font-size: 13px; }
+    .process-node.gate .process-node-title, .process-node.gate .process-node-body { fill: white; }
+    .process-caption {
+      min-height: 64px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--line);
+      color: #3d5966;
+      background: white;
+    }
+    .process-caption strong { color: var(--ink); }
+    .process-open-question {
+      margin-top: 13px;
+      padding: 13px 17px;
+      border-left: 4px solid var(--gold);
+      background: var(--gold-soft);
+      color: #5f4d35;
+      font-size: .9rem;
+    }
+    .detail {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 340px);
+      gap: 34px;
+      padding: 24px 26px 28px;
+      border-top: 1px solid var(--line);
+      background: #fbfcfc;
+    }
+    .detail h3 { margin: 0 0 8px; font-size: 1.35rem; letter-spacing: -.02em; }
+    .detail p { margin: 0; color: #415b68; max-width: 72ch; }
+    .detail-list { margin: 0; padding-left: 22px; color: #415b68; }
+    .detail-list li + li { margin-top: 5px; }
+    .source {
+      color: #627682;
+      background: #e8eff2;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: .84em;
+      white-space: nowrap;
+    }
+    .section-title { margin: 35px 0 16px; font-size: 1.5rem; letter-spacing: -.025em; }
+    .section-intro { margin: -5px 0 18px; color: var(--muted); max-width: 80ch; }
+    .deep-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px 20px;
+      padding: 0 0 16px;
+      border-bottom: 2px solid var(--ink);
+    }
+    .deep-header h2 { margin: 0; font-size: 1.55rem; letter-spacing: -.025em; }
+    .deep-header .hint { color: var(--muted); font-size: .88rem; }
+    .deep-summary { max-width: 78ch; color: #375363; margin: 17px 0 22px; }
+    .flow-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 21px;
+    }
+    .flow-meta span {
+      border: 1px solid #b6cbd4;
+      padding: 3px 10px;
+      background: #e7f0f3;
+      color: #28546a;
+      font-size: .83rem;
+      font-weight: 700;
+    }
+    .steps { list-style: none; padding: 0 0 0 8px; margin: 0; border-left: 2px solid #a8c4d0; }
+    .step {
+      position: relative;
+      padding: 0 0 30px 29px;
+      margin: 0;
+    }
+    .step::before {
+      content: attr(data-step);
+      position: absolute;
+      left: -21px;
+      top: 1px;
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--ink);
+      color: white;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+    .step:last-child { padding-bottom: 4px; }
+    .step-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px 14px; }
+    .step-head h3 { margin: 0; font-size: 1.06rem; }
+    .step-owner { color: var(--purple); font-size: .81rem; font-weight: 800; }
+    .call-chain {
+      display: block;
+      width: fit-content;
+      max-width: 100%;
+      overflow-x: auto;
+      margin: 9px 0 11px;
+      padding: 8px 11px;
+      background: #e6eef1;
+      color: #23495c;
+      border-left: 3px solid var(--blue);
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: .82rem;
+      white-space: nowrap;
+    }
+    .step p { margin: 0 0 10px; color: #435d69; max-width: 84ch; }
+    .step-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); background: white; }
+    .step-facts div { padding: 9px 12px; }
+    .step-facts div + div { border-left: 1px solid var(--line); }
+    .step-facts dt { font-size: .73rem; font-weight: 800; color: #617984; }
+    .step-facts dd { font-size: .82rem; margin: 2px 0 0; color: #354f5d; overflow-wrap: anywhere; }
+    .step-stop { color: #8d4139 !important; font-size: .83rem; margin-top: 8px !important; }
+    .table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); background: white; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th, td { text-align: left; vertical-align: top; padding: 13px 14px; border-bottom: 1px solid #d9e2e6; }
+    thead th { background: #e5edf1; color: #284759; font-size: .79rem; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody th { color: var(--ink); font-weight: 800; min-width: 150px; }
+    td { color: #435a67; }
+    .kind-label {
+      display: inline-block;
+      font-size: .73rem;
+      font-weight: 800;
+      padding: 1px 7px;
+      border-radius: 3px;
+      margin-bottom: 5px;
+    }
+    .kind-label.source { background: var(--blue-soft); color: #24667c; }
+    .kind-label.snapshot { background: var(--purple-soft); color: #654a82; }
+    .kind-label.state { background: var(--gold-soft); color: #805619; }
+    .kind-label.output { background: var(--red-soft); color: #974d42; }
+    .state-pill {
+      display: inline-block;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: .78rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+    .state-pill.sp-blue { background: var(--blue-soft); color: #24667c; }
+    .state-pill.sp-gold { background: var(--gold-soft); color: #805619; }
+    .state-pill.sp-green { background: var(--green-soft); color: var(--green); }
+    .module-table td:first-child { min-width: 175px; }
+    .module-table td:nth-child(2) { min-width: 240px; }
+    .module-table td:nth-child(3) { min-width: 260px; }
+    .module-table code, .data-table code, .limits code {
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: .82em;
+      background: #edf2f4;
+      color: #305264;
+      padding: 1px 4px;
+      overflow-wrap: anywhere;
+    }
+    .code-link { color: var(--blue); font-family: Consolas, "SFMono-Regular", monospace; font-size: .82em; }
+    .context-note { margin: 16px 0 0; padding: 14px 17px; background: #e8f0f3; border-left: 4px solid var(--blue); color: #385867; }
+    .limits { display: grid; gap: 0; border-top: 2px solid var(--ink); }
+    .limit { padding: 15px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 210px 1fr; gap: 14px; }
+    .limit strong { color: #8e4b27; }
+    .limit p { margin: 0; color: #465e6b; max-width: 82ch; }
+    .glossary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .glossary div { background: white; padding: 15px 18px; }
+    .glossary dt { font-weight: 800; }
+    .glossary dd { color: var(--muted); margin: 4px 0 0; }
+    .responsibility {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+    .responsibility > div { background: white; padding: 22px 24px; }
+    .responsibility h3 { margin: 0 0 9px; font-size: 1.08rem; }
+    .responsibility ul { margin: 0; padding-left: 22px; color: #425a67; }
+    .responsibility li + li { margin-top: 7px; }
+    .responsibility .does h3 { color: var(--blue); }
+    .responsibility .delegates h3 { color: var(--purple); }
+    .notice {
+      margin-top: 18px;
+      padding: 17px 20px;
+      background: var(--gold-soft);
+      border-left: 4px solid var(--gold);
+      color: #584c3b;
+    }
+    .notice strong { color: #60421d; }
+    footer { max-width: 1480px; margin: auto; padding: 0 46px 45px; color: var(--muted); font-size: .84rem; }
+    @media (max-width: 1050px) {
+      header { grid-template-columns: 1fr; gap: 16px; }
+      .workspace { grid-template-columns: 1fr; }
+      .rail { position: static; max-height: none; overflow: visible; }
+      .flow-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .rail-foot { margin-top: 15px; }
+      .process-header { grid-template-columns: 1fr; gap: 12px; }
+    }
+    @media (max-width: 720px) {
+      header { padding: 31px 20px 25px; }
+      .workspace { padding: 0 20px 45px; }
+      .flow-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .detail, .responsibility { grid-template-columns: 1fr; }
+      .process-tab { padding-inline: 13px; }
+      .step-facts { grid-template-columns: 1fr; }
+      .step-facts div + div { border-left: 0; border-top: 1px solid var(--line); }
+      .limit { grid-template-columns: 1fr; gap: 4px; }
+      .glossary { grid-template-columns: 1fr; }
+      .detail { gap: 12px; }
+      footer { padding: 0 20px 35px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .edge, .node rect { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topline" aria-hidden="true"></div>
+  <header>
+    <div>
+      <div class="kicker">口試行政系統 · 流程與程式結構導覽</div>
+      <h1>先看業務怎麼走，再看程式怎麼接</h1>
+      <p class="lead">上半部整理已確認的行政流程、例外與人工關卡；下半部對照目前程式模組，清楚區分目標流程與現況實作。</p>
+    </div>
+    <div class="hero-note">
+      <strong>如何閱讀這一頁</strong>
+      先切換七張行政流程圖確認人、文件與自動化的交接，再從左側選擇程式操作，查看目前真正會經過的模組與尚未閉合處。
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="rail" aria-label="操作情境">
+      <h2>選擇操作</h2>
+      <p>用一個實際工作動作，理解整條呼叫路徑。</p>
+      <div class="flow-list" id="flows"></div>
+      <nav class="rail-nav" aria-label="頁面章節">
+        <strong>往下閱讀</strong>
+        <a href="#confirmed-process">已確認行政流程</a>
+        <a href="#current-implementation">目前模組關係</a>
+        <a href="#deep-flow">逐步呼叫鏈</a>
+        <a href="#architecture">系統架構</a>
+        <a href="#data">資料走向</a>
+        <a href="#modules">模組手冊</a>
+        <a href="#issue-lifecycle">缺件六態生命週期</a>
+        <a href="#limits">未閉合的地方</a>
+      </nav>
+      <div class="rail-foot">圖中實線表示程式呼叫或資料交接。主檔與追蹤狀態是兩種不同資料：前者是可重建快照，後者要跨批次保留。</div>
+    </aside>
+
+    <main class="content">
+      <section class="process-section" id="confirmed-process" aria-labelledby="confirmed-process-title">
+        <div class="process-header">
+          <div>
+            <h2 id="confirmed-process-title">已確認行政流程</h2>
+            <p>七張圖共用同一組決策（<a class="code-link" href="已確認流程決策.md">已確認流程決策</a> 2026-09-23 全流程檢查後最新版）：附件2 是唯一案件來源，資料異常逐案處理、多筆紀錄取最新；學生送出即驗證且不經系辦審核；專員逐案放行；附件 4 寄全部指導教授確認；附件 6 是口試現場紙本；附件 5 已取消；委員個資不經學生。</p>
+          </div>
+          <p class="process-status"><strong>這裡畫的是目標流程。</strong><br>下方「目前模組關係」才代表現行程式已接上的路徑。</p>
+        </div>
+
+        <div class="process-tabs" role="tablist" aria-label="行政流程圖">
+          <button class="process-tab" type="button" role="tab" data-process="overview" aria-selected="true">01　時間順序</button>
+          <button class="process-tab" type="button" role="tab" data-process="documents" aria-selected="false">02　文件去向</button>
+          <button class="process-tab" type="button" role="tab" data-process="exceptions" aria-selected="false">03　補件與例外</button>
+          <button class="process-tab" type="button" role="tab" data-process="professor" aria-selected="false">04　教授確認</button>
+          <button class="process-tab" type="button" role="tab" data-process="banking" aria-selected="false">05　委員撥帳</button>
+          <button class="process-tab" type="button" role="tab" data-process="people" aria-selected="false">06　人工關卡</button>
+          <button class="process-tab" type="button" role="tab" data-process="automation" aria-selected="false">07　自動流程</button>
+        </div>
+
+        <div class="process-map-shell">
+          <div class="process-map-heading">
+            <h3 id="process-map-title">按時間發生的完整流程</h3>
+            <div class="process-legend" aria-label="流程節點類型">
+              <span><i class="process-dot human"></i>人工作業</span>
+              <span><i class="process-dot auto"></i>系統自動</span>
+              <span><i class="process-dot document"></i>文件</span>
+              <span><i class="process-dot secure"></i>敏感資料</span>
+              <span><i class="process-dot exception"></i>例外</span>
+            </div>
+          </div>
+          <div class="process-canvas">
+            <svg id="process-graph" class="process-svg" viewBox="0 0 1760 620" role="img" aria-labelledby="process-graph-title process-graph-desc"></svg>
+          </div>
+          <div class="process-caption" id="process-caption"></div>
+        </div>
+
+        <div class="process-open-question">
+          <strong>仍待拍板：</strong>補件截止後能否個案放行；放行後委員名單變動是否重審；教授要求修改時寫回哪個來源；同組附件 4 的寄送時機；口試費上限計算單位、本校他系與指導教授兼任委員的費用規則；學生後備信箱格式及多筆 Portal 真實匯出格式。見已確認流程決策第十節。
+        </div>
+      </section>
+
+      <section class="map-shell" id="current-implementation" aria-labelledby="map-title">
+        <div class="map-heading">
+          <h2 id="map-title">目前模組關係</h2>
+          <div class="legend" aria-label="模組類型">
+            <span><i class="swatch entry"></i>使用入口</span>
+            <span><i class="swatch core"></i>統一操作</span>
+            <span><i class="swatch work"></i>處理模組</span>
+            <span><i class="swatch data"></i>資料與產物</span>
+          </div>
+        </div>
+        <div class="map-scroll">
+          <svg id="graph" viewBox="0 0 1320 830" role="group" aria-labelledby="graph-title graph-desc">
+            <title id="graph-title">口試系統模組關係圖</title>
+            <desc id="graph-desc">Web 與 CLI 呼叫 application。application 協調表單、workflow、engines 與通知；workflow 使用 ingest、model、validation、generators；狀態保存在 JSON。</desc>
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#6e9ba9"></path>
+              </marker>
+            </defs>
+            <g id="edges"></g>
+            <g id="nodes"></g>
+          </svg>
+        </div>
+        <div class="detail" aria-live="polite">
+          <div>
+            <h3 id="detail-title">統一操作模組</h3>
+            <p id="detail-body"></p>
+          </div>
+          <ul class="detail-list" id="detail-points"></ul>
+        </div>
+      </section>
+
+      <section id="deep-flow" aria-labelledby="deep-flow-title">
+        <div class="deep-header">
+          <h2 id="deep-flow-title">逐步呼叫鏈</h2>
+          <span class="hint">由左側切換操作；每一步列出呼叫、讀寫與停止條件</span>
+        </div>
+        <p class="deep-summary" id="deep-summary"></p>
+        <div class="flow-meta" id="deep-meta"></div>
+        <ol class="steps" id="deep-steps"></ol>
+      </section>
+
+      <h2 class="section-title" id="architecture">系統架構：誰做決策，誰執行</h2>
+      <p class="section-intro">這是同一個 Python package 內的模組分工。箭頭代表呼叫方向；操作層、確定性資料管線、追蹤與通訊保持不同職責。</p>
+      <div class="table-wrap">
+        <table aria-label="架構層次">
+          <thead><tr><th>位置</th><th>負責的決策／工作</th><th>呼叫下一步</th><th>不自行處理</th></tr></thead>
+          <tbody>
+            <tr><th>入口<br><a class="code-link" href="../koushi/web/app.py">web/app.py</a> · <a class="code-link" href="../koushi/cli.py">cli.py</a></th><td>解析 HTTP 表單、登入 session 或 CLI 參數；把結果呈現給人。系辦頁面：工作總覽（含人工關卡）、匯入資料、文件中心、通訊記錄、委員個資、期限設定。</td><td>呼叫 <code>application</code> 的操作函式。</td><td>不在路由或 CLI 重新實作期限、版本、缺件、放行或產檔規則。</td></tr>
+            <tr><th>操作層<br><a class="code-link" href="../koushi/application.py">application.py</a></th><td>把一次動作組成用例：保存學生填寫、依時段決定能否送出、選建檔或產檔階段、人工關卡放行、讀寫追蹤狀態、安排草稿與委員個資索取。</td><td>呼叫 <code>workflow</code>、<code>engines</code>、<code>scheduler</code>、<code>mail</code>、<code>settings</code>、<code>case_review</code>、<code>committee_requests</code>。</td><td>不自己解析 Excel、計算清冊儲存格或實作 SMTP。</td></tr>
+            <tr><th>確定性資料管線<br><a class="code-link" href="../koushi/workflow.py">workflow.py</a></th><td>讀附件2 與學生填寫、疊加委員回填、整合委員與費用、檢核案件、保存主檔；按階段產附件 4／6。</td><td>呼叫 <code>ingest</code>、<code>registry</code>、<code>validation</code>、<code>master</code>、<code>generators</code>。</td><td>不判斷誰登入、何時催件、案件是否放行或是否寄信。</td></tr>
+            <tr><th>追蹤<br><a class="code-link" href="../koushi/engines/deficiency.py">engines/</a> · <a class="code-link" href="../koushi/scheduler.py">scheduler.py</a> · <a class="code-link" href="../koushi/issue_store.py">issue_store.py</a></th><td>由主檔與上一輪狀態得出缺件、教授確認、附件回收及到期提醒；缺件逐筆的生命週期。</td><td><code>state.py</code> 保存快照；<code>drafts.py</code> 組提醒草稿。</td><td>不把「排了一封提醒」當成真的已寄出。</td></tr>
+            <tr><th>通訊<br><a class="code-link" href="../koushi/mail/notify.py">mail/notify.py</a> · <a class="code-link" href="../koushi/send_log.py">send_log.py</a></th><td>對學生責任問題組補件信、對委員組個資索取信；按追蹤鍵去重、呼叫寄送器並記結果。</td><td>正式送信可由 <code>email_sender.py</code> 呼叫 SMTP。</td><td>不自行建立案件或把寄送成功推定成對方已回覆。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="section-title" id="data">資料走向：來源、快照、狀態與產物不能混為一談</h2>
+      <p class="section-intro">附件2 是案件來源；學生填寫只補附件 3 資料；主檔是可重建的業務快照；追蹤狀態是跨批次的工作紀錄。它們即使包含相同案件鍵，也有不同的寫入者與生命週期。</p>
+      <div class="table-wrap">
+        <table class="data-table" aria-label="資料來源與產物">
+          <thead><tr><th>資料</th><th>典型位置</th><th>誰寫入</th><th>誰讀取／何時使用</th><th>意義</th></tr></thead>
+          <tbody>
+            <tr><th><span class="kind-label source">來源</span><br>附件2（Portal 匯出）</th><td><code>data/附件2-Portal匯出.xlsx</code></td><td>系辦在「匯入資料」頁上傳（可提早上傳、有誤可整份重傳；第一次上傳日決定正式檢核開始日）。</td><td><code>ingest.read_att2</code> 建立案件；全收、不篩審核狀態；同生多筆以簽核完成時間最新者為準。</td><td><strong>唯一案件來源</strong>。缺欄、重複委員、同案不一致與被取代紀錄都逐案列例外，不擋整批。</td></tr>
+            <tr><th><span class="kind-label source">來源</span><br>學生填寫</th><td><code>submissions/&lt;學期-學號&gt;.json</code></td><td><code>submit_application</code> 驗證後建立／重填（送出即有效，不經審核）。</td><td><code>ingest.read_student_submissions</code> 依學期＋學號併入附件2；同案委員先以去稱謂姓名對應，同名才用單位區分。</td><td>補學生 Email、口試日期時地／方式、指導教授、委員名單、E-mail 與是否視訊出席；舊版移入 <code>versions/</code>。</td></tr>
+            <tr><th><span class="kind-label source">來源</span><br>系辦參照檔</th><td><code>data/距離表.csv</code>、<code>data/委員個資.xlsx</code></td><td>系辦上傳。</td><td>建檔時查交通費、舊口委身分與撥帳資料。</td><td>指導教授對照表已取消（改由學生填寫）。</td></tr>
+            <tr><th><span class="kind-label snapshot">快照</span><br>口試主檔</th><td><code>outputs/current/口試主檔.xlsx</code><br><code>outputs/YYYY-MM-DD/口試主檔-YYYY-MM-DD.xlsx</code></td><td><code>application.build_current_master</code> 呼叫 <code>workflow.build_master</code> 原子發布目前版，再複製當日快照。</td><td>網頁、每日自動化、<code>check</code>、<code>generate</code>、<code>status</code>、<code>remind</code> 共用固定目前版。</td><td>Exam／Member／Committee 的正規化快照，可由來源重建；建檔失敗保留前版但標示失敗，不冒充最新。</td></tr>
+            <tr><th><span class="kind-label state">工作狀態</span><br>系辦設定</th><td><code>outputs/_state/settings.json</code></td><td>「期限設定」頁（<code>settings.save</code>）。</td><td>送出限制、每日自動化、補件與催件。</td><td>本期學期、兩個截止日、後備信箱格式、發送時刻、曆日／工作日與國定假日；全系統一套。</td></tr>
+            <tr><th><span class="kind-label state">工作狀態</span><br>人工關卡放行</th><td><code>outputs/_state/case_reviews.json</code></td><td>專員按「已處理」（<code>case_review.clear</code>）。</td><td>產附件 4／6、寄委員個資索取信之前。</td><td>處理人、時間、備註與委員名單簽章。</td></tr>
+            <tr><th><span class="kind-label state">工作狀態</span><br>委員索取與回填</th><td><code>committee_requests.json</code>、<code>committee_replies.json</code></td><td>每日自動化記寄出日；系辦在「委員個資」頁登錄回填。</td><td>建檔時由 <code>ingest.apply_committee_replies</code> 疊加。</td><td>回填寫入輸出的口委資料庫，不改系辦上傳原檔。</td></tr>
+            <tr><th><span class="kind-label state">工作狀態</span><br>追蹤與寄送</th><td><code>engines_state.json</code>、<code>issue_records.json</code>、<code>send_log.json</code>、<code>audit_log.json</code></td><td>自動化、<code>status</code>、寄送與各項操作。</td><td>下一輪對帳、防重寄、稽核時間線。</td><td>跨批次持續存在；SMTP 接受不代表收件者已回覆。</td></tr>
+            <tr><th><span class="kind-label output">產物</span><br>附件 4／6</th><td><code>outputs/web/&lt;階段&gt;/</code> 或 <code>outputs/YYYY-MM-DD/</code></td><td><code>generate_pre_exam</code>／<code>generate_post_exam</code> 呼叫產生器。</td><td>附件 4 寄全部指導教授確認；附件 6 口試現場簽收回收。</td><td>主檔的投影，只含已放行案件；附件 5 已取消。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="context-note">狀態資料夾預設為 <code>outputs/_state/</code>（CLI 可用 <code>--state-dir</code> 指定），不跟每日主檔資料夾一起換日。</p>
+
+      <h2 class="section-title">操作層到底做什麼？</h2>
+      <section class="responsibility" aria-label="操作層的責任">
+        <div class="does">
+          <h3>它負責決定與協調</h3>
+          <ul>
+            <li>先驗證學生 Email、委員 E-mail、指導教授、委員人數／單位與口試日期，再保存填寫並歸檔舊版；另回傳不阻擋的自我檢查提示。</li>
+            <li>固定使用系辦設定的本期學期；決定案件只來自附件2，學生填寫只補資料，配不上的列例外。</li>
+            <li>依時段執行每日自動化：填寫期間只建預覽；補件期間正式檢核寄信；截止後鎖定。</li>
+            <li>人工關卡：列出每案例外、要求處理人姓名並寫入稽核；產檔與委員個資索取都只處理已放行案件。</li>
+          </ul>
+        </div>
+        <div class="delegates">
+          <h3>它交給既有模組執行</h3>
+          <ul>
+            <li><span class="source">ingest / registry / model</span> 解析來源、建立案件與委員身分、疊加回填、沿用舊口委。</li>
+            <li><span class="source">validation / workflow / generators</span> 檢查資格（含委員職級）並產主檔、附件 4／6。</li>
+            <li><span class="source">engines / scheduler / issue_store</span> 計算缺件、教授確認、回收及催辦。</li>
+            <li><span class="source">mail / send_log</span> 組信、去重並記錄寄送結果。</li>
+          </ul>
+        </div>
+      </section>
+
+      <h2 class="section-title" id="modules">模組手冊：公開入口與實際調用</h2>
+      <p class="section-intro">下表列出主要函式或類別。可點檔名開啟原始碼；「由誰呼叫」描述目前主要路徑，不把尚未整合的函式當成已上線流程。</p>
+      <div class="table-wrap">
+        <table class="module-table" aria-label="主要模組手冊">
+          <thead><tr><th>模組</th><th>主要入口／資料型別</th><th>由誰呼叫 → 接著呼叫誰</th><th>回傳或副作用</th></tr></thead>
+          <tbody>
+            <tr><td><a class="code-link" href="../koushi/web/app.py">web/app.py</a><br>網頁路由</td><td><code>submit()</code>、<code>view()</code>、<code>office_overview()</code>、<code>clear_case()</code>、<code>record_confirmation_route()</code>、<code>record_collection_route()</code>、<code>upload_registries()</code>、<code>office_settings_page()</code></td><td>瀏覽器呼叫路由 → 交給 <code>application</code>／<code>settings</code>／<code>committee_requests</code>。</td><td>HTML／redirect。總覽以附件2 案件為主並顯示未填、無信箱、孤立填寫與設定／自動化警示；登入目前仍是開發原型。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/cli.py">cli.py</a><br>命令列</td><td><code>main()</code>；<code>build</code>、<code>process</code>、<code>check</code>、<code>generate</code>、<code>status</code>、<code>remind</code>、<code>automate</code></td><td>操作者或排程器下指令 → 對應的 <code>application</code> 用例 → 印出結果。</td><td>文字輸出；<code>automate</code> 顯示目前時段。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/application.py">application.py</a><br>學生填寫</td><td><code>submit_application()</code>、<code>submission_self_check()</code>、<code>submission_block_reason()</code>、<code>mark_case_resubmitted()</code></td><td>Web → 鎖定本期學期／檢查時段 → 驗證欄位 → 歸檔舊版 → 保存新版。</td><td>驗證失敗不寫入也不歸檔；成功後回傳自我檢查提示。已重送案件在整個補件期間仍可改。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/application.py">application.py</a><br>建檔與產檔</td><td><code>build_current_master()</code>、<code>auto_build_if_ready()</code>、<code>generate_artifacts()</code></td><td>Web／CLI → <code>workflow.build_master()</code>；產檔先排除未放行（及口試後未確認）的案件。</td><td><code>BuildResult</code>、各階段結果；被排除的案件以 <code>CASE_REVIEW_PENDING</code>／<code>CONFIRMATION_PENDING</code> 列出。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/application.py">application.py</a><br>人工關卡</td><td><code>review_queue()</code> → <code>ReviewRow</code>；<code>clear_case_review()</code>、<code>record_confirmation()</code>、<code>record_collection()</code></td><td>系辦總覽／案件抽屜／文件中心 → <code>case_review</code> 與追蹤引擎。</td><td>附件2 異常、多筆紀錄、人數／職級／名單／日期例外與委員個資；放行、教授確認及附件6 回收都要求處理人並寫稽核。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/application.py">application.py</a><br>每日自動化</td><td><code>run_daily_automation()</code>、<code>process_round()</code>、<code>sync_deficiency_deadlines()</code>、<code>plan_reminders()</code>、<code>process_committee_requests()</code></td><td>CLI <code>automate</code> → 依 <code>settings.phase_on()</code> 分時段執行。</td><td>預覽主檔，或正式檢核＋補件信＋催件＋委員索取信；未到發送時刻只預覽。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/settings.py">settings.py</a><br>期限設定</td><td><code>OfficeSettings</code>、<code>phase_on()</code>、<code>fallback_student_email()</code>、<code>load()</code>／<code>save()</code>／<code>from_form()</code></td><td>期限設定頁寫；學生入口、送出限制與自動化讀。</td><td><code>settings.json</code>＋稽核；包含本期學期、兩個截止日、發送時刻、後備信箱、工作日與國定假日。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/case_review.py">case_review.py</a><br>放行紀錄</td><td><code>clear()</code>、<code>load()</code>、<code>committee_signature()</code></td><td><code>clear_case_review()</code> → 寫檔與稽核。</td><td><code>case_reviews.json</code>；名單變動只標示、不自動撤銷。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/committee_requests.py">committee_requests.py</a><br>委員個資</td><td><code>plan()</code>、<code>draft()</code>、<code>mark_sent()</code>、<code>save_reply()</code></td><td>自動化寄索取信；委員個資頁由具名處理人登錄回填。</td><td>以委員 E-mail 合併；回填進口委資料庫，稽核不寫敏感值。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/workflow.py">workflow.py</a><br>轉換流程</td><td><code>build_master()</code>、<code>generate_456()</code>、<code>generate_pre_exam()</code>、<code>generate_post_exam()</code></td><td>Application → ingest／registry／validation／master／generators。</td><td>主檔與委員快照、附件路徑、異常清單。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/ingest.py">ingest.py</a><br>來源正規化</td><td><code>read_att2()</code>、<code>read_student_submissions()</code>、<code>apply_committee_replies()</code>、<code>reuse_registry_by_name_unit()</code>、<code>fill_advisors()</code>、<code>fill_fees()</code></td><td>Workflow → 附件2 取最新紀錄建案 → 併入學生填寫 → 疊加回填 → 沿用舊口委 → 費用。</td><td>來源異常逐案不中斷整批；同案委員以姓名優先對應；部分視訊委員交通費為 0，口試費套人數上限。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/registry.py">registry.py</a><br>外部參照</td><td><code>CommitteeRegistry</code>、<code>DistanceTable</code></td><td>Workflow 載入 → ingest 查詢／合併 → Workflow 保存當次委員快照。</td><td>委員強識別（身分證）與「姓名＋單位唯一相符」沿用；距離費用。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/model.py">model.py</a> ＋ <a class="code-link" href="../koushi/master.py">master.py</a><br>主檔</td><td><code>Exam</code>、<code>Member</code>、<code>Committee</code>、<code>Master</code>；<code>save()</code>／<code>load()</code></td><td>ingest 建物件 → workflow 組 Master → master 寫 Excel；後續讀回。</td><td>一場口試一筆 Exam；指導教授可多位（以「、」分隔）。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/validation.py">validation.py</a><br>規則檢核</td><td><code>check()</code>、<code>rank_exception()</code>、<code>attachment4_blocked_keys()</code>、<code>attachment6_blocked_keys()</code></td><td>Workflow／application／deficiency.scan → 產異常及阻擋集合。</td><td>問題含責任與附件阻擋；委員人數、口試日期過早、Portal 特殊資格、職稱未達／不明確都分流給專員。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/generators/grouping.py">generators/</a><br>文件投影</td><td><code>attachment4.generate()</code>、<code>attachment6.generate()</code>；<code>roster_groups()</code></td><td>Workflow → 依主檔分組 → 填官方範本。</td><td>附件 4／6；不創建第二套案件資料來源。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/engines/deficiency.py">engines/</a><br>三種追蹤</td><td><code>deficiency.scan()</code>、<code>confirmation.create_requests()</code>／<code>reconcile()</code>、<code>collection.reconcile()</code></td><td>Application 以 Master 和上一輪 state 對帳。</td><td>缺件（學生共用補件截止日）、教授確認（每位指導教授各一筆）、附件6 回收。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/scheduler.py">scheduler.py</a> ＋ <a class="code-link" href="../koushi/drafts.py">drafts.py</a><br>催辦草稿</td><td><code>ReminderScheduler</code>、<code>DraftTemplateEngine</code></td><td><code>plan_reminders()</code> → 草稿與內部待辦。</td><td>補件截止前幾天起每日最多催一次；工作日計算排除系辦設定的國定假日；填寫截止前不催。</td></tr>
+            <tr><td><a class="code-link" href="../koushi/mail/notify.py">mail/notify.py</a> ＋ <a class="code-link" href="../koushi/send_log.py">send_log.py</a><br>寄信</td><td><code>drafts_for_student_issues()</code>、<code>send_drafts()</code>、<code>send_scheduled()</code>、<code>SendEventLog</code></td><td>自動化／<code>process</code> → 草稿 → 明確 <code>send=True</code> 時呼叫寄送器。</td><td>補件信寫截止日、不顯示內部代碼；無學生 Email 時用已設定的後備格式；寄送依追蹤鍵去重。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="section-title" id="issue-lifecycle">缺件的完整生命週期：issue_store.py 六態狀態機</h2>
+      <p class="section-intro">在 <a class="code-link" href="../koushi/engines/deficiency.py">engines/deficiency.py</a> 的粗粒度 <code>new／notified／overdue</code> 之上，<a class="code-link" href="../koushi/issue_store.py">issue_store.py</a> 記錄每筆缺件從偵測到解決的每一步；不可跳步，復發時可從 <code>resolved</code> 回到 <code>detected</code>。對帳、補件信寄送與學生重送都會推進這些狀態，系辦案件抽屜的「缺件進度」時間軸即讀此紀錄。</p>
+
+      <div class="table-wrap">
+        <table aria-label="缺件六態狀態機">
+          <thead><tr><th>狀態</th><th>說明與觸發</th></tr></thead>
+          <tbody>
+            <tr><td><span class="state-pill sp-blue">detected</span></td><td>系統重建 Master 並重跑 validation 後，首次發現該筆缺件。</td></tr>
+            <tr><td><span class="state-pill sp-gold">draft_ready</span></td><td>補件信草稿已產生。</td></tr>
+            <tr><td><span class="state-pill sp-gold">request_sent</span></td><td>補件信已寄出（經 send_log 記錄）。</td></tr>
+            <tr><td><span class="state-pill sp-gold">resubmitted</span></td><td>學生重新送出；此後不再收到「尚未提交」催件。</td></tr>
+            <tr><td><span class="state-pill sp-gold">revalidated</span></td><td>系統重建 Master 後重跑 validation。</td></tr>
+            <tr><td><span class="state-pill sp-green">resolved</span></td><td>該欄位通過驗證，問題解除。</td></tr>
+            <tr><td><code>revalidated → request_sent</code></td><td>複驗仍未通過，退回再通知一輪（不是新狀態，是回退路徑）。</td></tr>
+            <tr><td><code>resolved → detected</code></td><td>同一追蹤鍵復發，強制轉回 <code>detected</code> 重新追蹤（不是新狀態，是回退路徑）。</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="section-title" id="limits">已實作與尚未閉合的地方</h2>
+      <div class="limits">
+        <div class="limit"><strong>學生入口等待 Portal 端確認</strong><p>學生如何登入、驗證身分，須等 Portal 端可提供的能力確定後再決定。現有網頁只輸入學號即可進入，是開發原型，正式環境不可沿用。</p></div>
+        <div class="limit"><strong>教授回信判讀尚未接 LLM</strong><p>每日自動化已把附件4（全學期一份，2026-10-10 起）寄給名下案件全部放行的指導教授（<code>advisor_confirmation.py</code>，每位收到同一份、信中只列自己學生；自己的列變動才重寄給本人），<code>automate --send</code> 會以 IMAP 讀回信、核對寄件者與版本後放進文件中心「教授回信待判讀」。LLM 判讀尚未接上，目前由系辦判讀「確認無誤／需修改／忽略」；逾期催辦信主旨沒有代碼，回信只能依寄件者唯一對應。接法與護欄見 <a class="code-link" href="歷史紀錄/LLM前置研究-2026-09-23.md">LLM 前置研究</a>。</p></div>
+        <div class="limit"><strong>委員個資回覆管道</strong><p>索取信附委員專屬連結（<code>/committee/reply/&lt;代碼&gt;</code>，需設定 <code>KOUSHI_PUBLIC_URL</code>），委員線上填寫；改以回信提供者由系辦在「委員個資」頁登錄。正式上線須 HTTPS，個資存檔加密日後處理。委員未回覆的催件參數尚未定；口試前 3 天（暫定常數）仍未回填即列為人工關卡例外。</p></div>
+        <div class="limit"><strong>人工關卡的時間與重審</strong><p>放行未強制在補件截止日之前；放行後委員名單變動或出現放行時沒有的新例外，都只標示、不自動撤銷（是否重審待決）。</p></div>
+        <div class="limit"><strong>費用規則仍需系辦確認</strong><p>口試費目前暫以每位委員在同一清冊場次套用「碩 3／博 6」上限；本校他系是否免撥帳與交通費、指導教授兼任委員是否支領口試費都保留為設定，預設不改原行為。</p></div>
+        <div class="limit"><strong>版本範圍</strong><p>教授確認已綁附件4 內容版本（由系統寄出者）：內容變動即重設重寄；系辦手動登錄「已寄出」的請求沒有版本可比。附件6 回收仍按清冊鍵對帳，換委員或改金額但案件鍵不變時，舊回收紀錄可能被沿用。</p></div>
+        <div class="limit"><strong>批次與併行</strong><p>建檔區段有 OS 層級排他鎖；主檔、Registry 與附件仍分別寫入，尚無 staging＋manifest 的整批原子發布。</p></div>
+        <div class="limit"><strong>其他系所</strong><p>目前以本系規定為準（委員名單與 E-mail 必填、職級規則）；其他系所（Portal 委員欄非必填等）納入時需調整。</p></div>
+      </div>
+
+      <h2 class="section-title" id="terms">閱讀程式時的四個關鍵詞</h2>
+      <dl class="glossary">
+        <div><dt>案件鍵 case_key</dt><dd>學期＋學號，用來辨識一筆口試案件；來自附件2，學生填寫依此併入。</dd></div>
+        <div><dt>填寫版本 version</dt><dd>同一案件每次重新送出遞增的整數；用於寄信去重，尚不等於附件內容版本。</dd></div>
+        <div><dt>時段 phase</dt><dd>依系辦設定的填寫截止日與補件截止日劃分：填寫期間、補件期間、補件已截止；決定學生能否送出與自動化做什麼。</dd></div>
+        <div><dt>資料異常 issue</dt><dd>解析或檢核後的問題，含案件、欄位、責任與附件4／6 阻擋資訊；系辦責任者即人工關卡的「例外」。</dd></div>
+      </dl>
+
+      <div class="notice">
+        <strong>看圖時請分清：</strong>亮起的線代表目前主要程式路徑；上方「已實作與尚未閉合」列出的能力，不應由圖上有模組名稱就推定已完成。
+      </div>
+    </main>
+  </div>
+  <footer>依目前程式碼繪製 · <span class="source">koushi/application.py</span> 是操作入口，<span class="source">koushi/workflow.py</span> 保留確定性的資料轉換。</footer>
+
+  <script>
+    const svgNS = "http://www.w3.org/2000/svg";
+    const nodes = {
+      web: {x: 48, y: 155, w: 190, h: 92, label: "學生／系辦網頁", path: "web/app.py", kind: "entry",
+        body: "學生送出附件 3 補充資料；系辦上傳附件2 與參照檔、具名放行案件與登錄人工關卡、設定期限。規則交給 application。",
+        points: ["學生學期與學號由本期設定及 session 帶入。", "總覽以附件2 案件為主，顯示未填、無信箱、孤立填寫與系統警示。"]},
+      cli: {x: 48, y: 530, w: 190, h: 92, label: "命令列", path: "cli.py", kind: "entry",
+        body: "解析 build、process、generate、status、remind、automate 等指令；automate 供每日排程呼叫。",
+        points: ["建檔、產檔與狀態操作都交由 application 選擇流程。", "明確加 --send 才執行寄送。"]},
+      app: {x: 328, y: 337, w: 260, h: 118, label: "操作層", path: "application.py", kind: "core",
+        body: "用例入口：把使用者的一次動作變成完整的業務操作，依時段與放行狀態協調下游模組，回傳可呈現的結果。",
+        points: ["submit_application / submission_block_reason 管理填寫版本與送出時段。", "run_daily_automation 依 settings 時段執行預覽、補件或截止後作業。", "review_queue / clear_case_review 是人工關卡。", "process_committee_requests 寄委員個資索取信。"]},
+      forms: {x: 688, y: 56, w: 238, h: 94, label: "附件2＋學生填寫", path: "data/ · submissions/*.json", kind: "data",
+        body: "附件2（Portal 匯出）是唯一案件來源；同生多筆取簽核完成時間最新者，學生填寫只補附件 3 資料。",
+        points: ["來源異常逐案例外；同案委員以去稱謂姓名優先對應。", "送出即驗證且有效；委員撥帳個資不經學生。"]},
+      workflow: {x: 688, y: 235, w: 238, h: 94, label: "主檔／產檔流程", path: "workflow.py", kind: "work",
+        body: "確定性資料處理的協調者：讀附件2 與學生填寫、疊加委員回填、檢核、存主檔，或按階段產生附件 4／6。",
+        points: ["固定發布 outputs/current 並另存當日快照。", "沒有附件2 時主檔沒有案件；附件 5 已取消。"]},
+      tracking: {x: 688, y: 421, w: 238, h: 94, label: "追蹤與催辦", path: "engines/ + scheduler.py + issue_store.py", kind: "work",
+        body: "缺件、教授確認和附件回收各有追蹤引擎；scheduler 依系辦設定排補件截止前的催件。",
+        points: ["工作日排除國定假日；本輪曾通知者截止前可持續修正。", "每位指導教授各一筆附件 4 確認。"]},
+      notify: {x: 688, y: 607, w: 238, h: 94, label: "寄信", path: "mail/notify.py + send_log.py", kind: "work",
+        body: "組學生補件信與委員個資索取信，寄送紀錄用追蹤鍵去重。",
+        points: ["補件信寫截止日、不顯示內部代碼；無信箱時才套後備格式。", "委員以 E-mail 合併，同一委員只寄一封。"]},
+      ingest: {x: 1040, y: 82, w: 230, h: 94, label: "來源解析", path: "ingest.py + registry.py", kind: "work",
+        body: "附件2 多筆取最新後建案、併入學生填寫、疊加委員回填、以「姓名＋單位唯一相符」沿用舊口委。",
+        points: ["來源問題逐案例外；同案委員以姓名優先對應。", "身分證是強識別；姓名＋單位唯一相符者沿用並標給專員。"]},
+      domain: {x: 1040, y: 222, w: 230, h: 94, label: "主檔資料模型", path: "model.py + master.py", kind: "data",
+        body: "Exam、Member、Committee、Master 分別描述案件、案件中的委員關係、委員身分與整批主檔。",
+        points: ["Excel 主檔是可重建快照。", "指導教授可多位，以「、」分隔。"]},
+      validation: {x: 1040, y: 362, w: 230, h: 94, label: "資料檢核", path: "validation.py", kind: "work",
+        body: "檢查缺件、委員職級與阻擋產出的原因；結果供建檔、產檔、缺件追蹤與人工關卡使用。",
+        points: ["人數不足、日期過早與 Portal 多筆等列專員例外。", "特殊資格與職級不符附 Portal 原文，不阻擋。"]},
+      generators: {x: 1040, y: 502, w: 230, h: 94, label: "附件產生器", path: "generators/", kind: "data",
+        body: "把主檔資料投影成官方附件 4／6 的檔案格式。",
+        points: ["只產已放行案件。", "附件 5 已取消。"]},
+      state: {x: 1040, y: 642, w: 230, h: 94, label: "跨批次狀態", path: "outputs/_state/", kind: "data",
+        body: "系辦設定、放行紀錄、委員索取與回填、缺件／確認／回收、寄送與稽核紀錄。",
+        points: ["狀態不是主檔的欄位，也不是每次建檔就從零開始。", "JSON 以原子寫入保存。"]}
+    };
+
+    const edges = [
+      ["web","app"], ["cli","app"], ["app","forms"], ["app","workflow"],
+      ["app","tracking"], ["app","notify"], ["app","domain"], ["app","validation"], ["app","state"], ["workflow","ingest"],
+      ["workflow","domain"], ["workflow","validation"], ["workflow","generators"],
+      ["tracking","validation"], ["tracking","state"], ["notify","state"]
+    ];
+    const flows = [
+      {id:"submit", label:"學生送出／修改", nodes:["web","app","forms","state"],
+       edges:["web-app","app-forms","app-state"],
+       body:"網頁把本期學期、session 學號和附件 3 欄位交給 application。它先檢查時段與必填格式；通過才歸檔舊版、保存新版本並顯示自我檢查提示。送出即有效，不經審核。",
+       points:["驗證失敗不儲存也不歸檔。","本輪曾收到學生責任補件通知者，補件截止前即使問題已修好仍可繼續修改。"]},
+      {id:"clear", label:"人工關卡放行", nodes:["web","app","domain","validation","state"],
+       edges:["web-app","app-domain","app-validation","app-state"],
+       body:"專員在系辦總覽打開案件，審核委員資格與各項例外，填處理人姓名後按「已處理」；application 記錄放行、委員名單簽章與稽核。",
+       points:["放行後才產附件 4／6、才寄委員個資索取信。","每案一次；名單變動只標示，不自動撤銷。"]},
+      {id:"automate", label:"automate 每日自動化", nodes:["cli","app","forms","workflow","ingest","domain","validation","tracking","notify","state"],
+       edges:["cli-app","app-forms","app-workflow","workflow-ingest","workflow-domain","workflow-validation","app-tracking","tracking-state","app-notify","notify-state","app-state"],
+       body:"依時段執行：填寫期間只建預覽；補件期間建檔、寄補件信、套用補件截止日、催件、寄委員索取信；補件截止後停止學生通知。",
+       points:["填寫截止日後沒有附件2 直接報錯。","未到每日發送時刻只預覽。"]},
+      {id:"build", label:"build 建主檔", nodes:["cli","app","forms","workflow","ingest","domain","validation"],
+       edges:["cli-app","app-forms","app-workflow","workflow-ingest","workflow-domain","workflow-validation"],
+       body:"build 先從附件2 多筆紀錄取簽核完成時間最新者，再併入學生填寫與委員回填，產出固定目前主檔與當日快照；不寄信。",
+       points:["欄位／同案異常都逐案例外，不因單筆擋住整批。","建檔失敗保留前版並記錄失敗狀態。"]},
+      {id:"process", label:"process 補件輪次", nodes:["cli","app","forms","workflow","ingest","domain","validation","notify","state"],
+       edges:["cli-app","app-forms","app-workflow","workflow-ingest","workflow-domain","workflow-validation","app-notify","notify-state"],
+       body:"process 先建主檔，再從學生責任異常組補件草稿；信中寫明補件截止日、不顯示內部代碼，缺 Email 時只在已設定格式下使用後備信箱。",
+       points:["同填寫版本、同追蹤狀態不重寄。","只有明確加 --send 才會進入寄送紀錄與 transport。"]},
+      {id:"check", label:"check 資料檢核", nodes:["cli","app","domain","validation"],
+       edges:["cli-app","app-domain","app-validation"],
+       body:"check 只讀既有主檔，重新執行 validation.check()，由 CLI 列出問題代碼與數量。",
+       points:["不重建主檔。","不產附件、不更新追蹤狀態、不寄信。"]},
+      {id:"generate", label:"generate 產附件", nodes:["cli","app","workflow","domain","validation","generators","state"],
+       edges:["cli-app","app-state","app-workflow","workflow-domain","workflow-validation","workflow-generators"],
+       body:"generate 讓 application 選擇口試前或口試後；只納入專員已放行的案件，口試後另需全部指導教授確認附件 4。",
+       points:["附件 4／6 都是同一份主檔的投影。","被排除的案件列在待處理項目，不是靜默消失。"]},
+      {id:"status", label:"status 追蹤狀態", nodes:["cli","app","tracking","validation","state","domain"],
+       edges:["cli-app","app-domain","app-tracking","tracking-validation","tracking-state"],
+       body:"status 讀主檔與上一輪狀態，完整對帳後保存三種追蹤結果，最後才按 --term 篩選顯示。",
+       points:["這個查詢指令會寫 engines_state.json。","指定學期不會刪掉其他學期狀態。"]},
+      {id:"remind", label:"remind 催辦計畫", nodes:["cli","app","tracking","validation","state","domain"],
+       edges:["cli-app","app-domain","app-tracking","tracking-validation","tracking-state"],
+       body:"remind 重算狀態但不保存，再由 scheduler 挑該催的項目；學生問題成提醒草稿，系辦問題成內部待辦。",
+       points:["催件天數、曆日／工作日與國定假日取自系辦設定。","無信箱且未設後備格式就不寄並在總覽標示。"]}
+    ];
+
+    const flowDetails = {
+      submit: {
+        summary:"學生只補 Portal 沒有的附件 3 資料，送出即有效。伺服器以系辦設定的本期學期與 session 學號組案件鍵；先驗證再保存，成功後另顯示不阻擋的自我檢查提示。",
+        meta:["入口：POST /submit","主鍵：本期學期＋session 學號","驗證失敗不寫入"],
+        steps:[
+          {title:"網頁接收提交", owner:"Web 入口", call:"POST /submit → web.submit()",
+           text:"login_required(role='student') 先要求學生角色；路由把 request.form、session.student_id 與系辦設定的本期學期交給操作層，不接受學生自行切換學期。",
+           reads:"HTTP 表單、session.student_id、settings.current_term", writes:"無", result:"進入時段檢查",
+           stop:"沒有學生 session，路由不會執行提交。"},
+          {title:"依時段檢查能否送出", owner:"Application", call:"submission_block_reason(case_key, state_dir)",
+           text:"讀系辦設定：填寫截止日（含）前自由修改；補件期間只要本輪曾收到學生責任補件通知，問題修好後到截止前仍可繼續改；補件截止後拒絕。",
+           reads:"settings.json、engines_state.json", writes:"無", result:"允許，或給學生看的原因",
+           stop:"被擋下時不保存任何資料。"},
+          {title:"送出前驗證", owner:"Application", call:"submit_application() → _validate_submission()",
+           text:"檢查學生 Email、口委 E-mail、至少一位指導教授、至少三位委員、委員服務單位與口試日期；博士五位由附件2 帶入學位後再由主檔檢核。",
+           reads:"附件 3 表單欄位", writes:"無", result:"通過，或明確欄位錯誤",
+           stop:"不通過時不儲存新資料，也不歸檔舊版。"},
+          {title:"判斷是否重填並歸檔", owner:"Application", call:"submit_application() → versions/ 歸檔",
+           text:"若同案件已有當前 JSON，版本號加一，前版完整保存到 versions/。",
+           reads:"submissions/<case_key>.json（若存在）", writes:"submissions/versions/<case_key>_vN_時間.json",
+           result:"新提交的整數 version"},
+          {title:"保存當前填寫", owner:"Application", call:"submit_application() → _write_json()",
+           text:"只保存附件 3 欄位：學生 Email、論文題目、口試日期時地與方式（含部分視訊）、指導教授、委員姓名／服務單位／職稱／E-mail／是否視訊出席。不收 Portal 已有欄位與撥帳個資。",
+           reads:"表單欄位", writes:"submissions/<case_key>.json", result:"當前填寫 dict"},
+          {title:"標記重送、提示並觸發重建", owner:"Application / Web", call:"mark_case_resubmitted() → submission_self_check() → _try_auto_build()",
+            text:"已寄過補件信的缺件標為 resubmitted（不再催）；畫面提示日期已過、早於流程可完成日或博士人數等自我檢查，再重建目前主檔。",
+            reads:"issue_records.json、settings、系辦檔", writes:"issue_records.json；outputs/current 主檔與當日快照（若可建）", result:"提示與建檔狀態"}
+        ]
+      },
+      clear: {
+        summary:"人工關卡是每案一次的專員放行：審核口試委員資格（例外多，需人工判斷）與該案其他例外，按「已處理」後才進入附件 4 與委員個資索取。",
+        meta:["入口：POST /office/case/<case_key>/clear","角色：office","紀錄：case_reviews.json"],
+        steps:[
+          {title:"列出人工關卡清單", owner:"Web / Application", call:"office_overview() → review_queue(master, state_dir)",
+           text:"每個生效案件一列；例外包括附件2 資料問題／多筆紀錄、名單不一致、人數不足、特殊資格或職級問題、姓名＋單位沿用、日期過早及口試將至未交個資。",
+           reads:"主檔、case_reviews.json、委員索取狀態", writes:"無", result:"ReviewRow 清單與待放行數"},
+          {title:"專員審核並放行", owner:"Web", call:"clear_case() → clear_case_review()",
+           text:"案件抽屜顯示例外與 Portal 委員資格原文；專員必填處理人姓名，可寫備註後按「已處理，放行」。只有附件2、學生未填的案件也能審。",
+           reads:"case_key、處理人、備註", writes:"session 預填處理人", result:"呼叫 case_review.clear()",
+           stop:"主檔中找不到案件時拒絕。"},
+          {title:"保存放行紀錄", owner:"case_review", call:"case_review.clear() → atomic_write_json() → audit",
+           text:"記錄必填處理人、時間、備註與委員名單簽章並寫稽核；重複放行覆蓋為最新一次。教授確認、附件6 回收與委員回填也遵守具名稽核。",
+           reads:"主檔案件", writes:"case_reviews.json、audit_log.json", result:"CaseReview"},
+          {title:"放行後的效果", owner:"Application", call:"generate_artifacts() ／ process_committee_requests()",
+           text:"產附件 4／6 只納入已放行案件；每日自動化對已放行案件中撥帳不齊的委員寄索取信。名單日後變動只在清單標示「名單有變動」。",
+           reads:"case_reviews.json", writes:"—", result:"附件與索取信的納入範圍"}
+        ]
+      },
+      automate: {
+        summary:"automate 是每日排程呼叫的入口，依系辦設定的時段決定今天做什麼；所有寄信都走 send_log 去重。",
+        meta:["入口：python -m koushi automate [--send]","讀：settings.json","時段：填寫／補件／截止後"],
+        steps:[
+          {title:"判斷時段與發送時刻", owner:"Application", call:"settings.load() → phase_on(today)",
+            text:"未設定或填寫截止日（含）前是填寫期間；隔天起到補件截止日是補件期間；之後是截止後。未到每日發送時刻時 send 自動改為預覽；執行結果另供總覽顯示失敗警示。",
+           reads:"settings.json、現在時間", writes:"無", result:"phase、notes"},
+          {title:"填寫期間：只建預覽", owner:"Application / Workflow", call:"build_current_master()",
+           text:"建預覽版主檔供儀表板檢視，不寄信、不催、不動追蹤狀態。",
+           reads:"學生填寫、系辦檔", writes:"主檔", result:"AutomationResult(phase=filling)"},
+          {title:"補件期間：正式檢核與補件信", owner:"Application", call:"process_round() → sync_deficiency_deadlines() → tracking_snapshot()",
+            text:"必須已有附件2；建檔、寄首次補件信，信內寫補件截止日且隱藏問題代碼；學生缺件一律以同一補件截止日為期限，對帳落盤。",
+           reads:"附件2、學生填寫、上一輪狀態", writes:"主檔、engines_state、issue_records、send_log", result:"補件草稿／已寄",
+           stop:"沒有附件2 直接報錯，不用空主檔起算期限。"},
+          {title:"催件、教授確認與附件6 回收提醒", owner:"Scheduler", call:"plan_reminders(include_student=補件期間)",
+            text:"補件截止前幾天起每日最多催一次；工作日排除設定的國定假日。無 Email 時才套後備格式，仍無地址便不寄並由總覽標示。",
+           reads:"三份追蹤報告、系辦設定", writes:"send_log、節流狀態", result:"已寄提醒"},
+          {title:"委員個資索取", owner:"Application", call:"process_committee_requests()",
+           text:"已放行案件中撥帳不齊的校外委員，以 E-mail 合併寄一封索取信；寄過或已回填不再寄。",
+           reads:"主檔、case_reviews、committee_requests／replies", writes:"send_log、committee_requests.json", result:"索取信草稿／已寄"}
+        ]
+      },
+      build: {
+        summary:"build 以附件2 建案，併入學生填寫、疊加委員回填、沿用舊口委，產出正規化主檔。它不寄信。",
+        meta:["入口：python -m koushi build","輸入：附件2＋學生填寫","輸出：Master Excel＋委員快照"],
+        steps:[
+          {title:"收集輸入路徑", owner:"CLI", call:"cli.main('build') → ingest.student_submission_paths()",
+           text:"CLI 合併表單路徑；附件2 未用 --att2 指定時使用系辦上傳的檔；委員回填取自 --state-dir。",
+           reads:"CLI 參數、表單目錄", writes:"無", result:"submission_paths、RegistryPaths"},
+          {title:"以附件2 建案並併入學生填寫", owner:"Workflow / ingest", call:"read_att2() → read_student_submissions()",
+            text:"附件2 全收、不篩審核狀態；同生多筆先取簽核完成時間最新者。學生填寫依學期＋學號併入；同案委員去稱謂後以姓名優先對應，同名才用單位區分。",
+            reads:"附件2、學生填寫", writes:"無", result:"案件、問題清單",
+            stop:"缺欄、重複委員、同案不一致、被取代紀錄、查無案件或名單不一致都逐案例外，不讓單筆擋住整批。"},
+          {title:"委員身分：回填與沿用", owner:"ingest / registry", call:"apply_committee_replies() → reuse_registry_by_name_unit()",
+           text:"系辦登錄的委員回填依 E-mail 套回；有身分證即升級為正式身分。仍是暫定身分者，若舊口委資料庫姓名＋單位恰好一筆相符即沿用並標給專員。",
+           reads:"committee_replies.json、委員個資.xlsx", writes:"記憶體中的 Registry", result:"委員身分"},
+          {title:"組裝與檢核", owner:"Workflow / model / validation", call:"materialize_committees() → fill_advisors() → fill_fees() → validation.check()",
+            text:"補入費用：全視訊或個別勾選視訊出席者交通費為 0；口試費暫按碩 3／博 6 人上限。再檢核缺件、人數、日期、職級與附件阻擋。",
+           reads:"Registry、距離表", writes:"記憶體中的 Master", result:"Master＋issues"},
+          {title:"輸出本次批次", owner:"Workflow / master", call:"CommitteeRegistry.save() → master.save()",
+            text:"原子發布固定目前主檔，再複製當日快照；建檔失敗不覆蓋可用前版，另保存失敗狀態供總覽警示。",
+            reads:"Master、issues", writes:"outputs/current/口試主檔.xlsx；outputs/YYYY-MM-DD/ 當日快照", result:"BuildResult",
+            stop:"這兩個寫入尚非同一交易。"}
+        ]
+      },
+      process: {
+        summary:"process 在 build 之上多做「學生補件草稿」和可選的實際寄送。時段判斷在 automate；process 本身不看時段。",
+        meta:["入口：python -m koushi process","預設：不寄信","可選：--send"],
+        steps:[
+          {title:"建立當前主檔", owner:"CLI → Application", call:"process_round() → build_current_master()",
+           text:"使用同一條建檔管線得到 BuildResult。",
+           reads:"附件2、學生填寫、Registry", writes:"當批主檔與委員快照", result:"Master、issues"},
+          {title:"取得收件人與填寫版本", owner:"Application", call:"_submission_contacts()",
+            text:"只採本次確實進入 Master 的案件之目前填寫，取學生 Email 與版本；缺 Email 時才依系辦設定推導後備信箱。",
+            reads:"學生填寫 JSON、settings.student_email_pattern", writes:"無", result:"contacts、各案件 version",
+           stop:"同案有多份填寫或版本不合法時停止通知。"},
+          {title:"按責任組學生補件草稿", owner:"mail/notify", call:"drafts_for_student_issues()",
+            text:"只挑責任為 student 的問題，依案件合成信件；內容寫明補件截止日、不顯示內部問題代碼，追蹤資訊含填寫版本。",
+           reads:"issues、contacts", writes:"記憶體中的草稿", result:"草稿清單"},
+          {title:"預覽或寄送", owner:"Application / mail", call:"send=True → notify.send_drafts()",
+           text:"預設只回傳草稿；--send 時逐封寄送並保存紀錄，推進 issue_records 到 request_sent。",
+           reads:"草稿、send_log.json", writes:"send_log.json、issue_records.json", result:"sent 清單"}
+        ]
+      },
+      check: {
+        summary:"check 是唯讀主檔檢查。它不重新讀來源，不重建 Excel，也不改跨批次追蹤。",
+        meta:["入口：python -m koushi check","資料：既有 Master","副作用：無"],
+        steps:[
+          {title:"讀回 Excel 快照", owner:"Application / master", call:"check_current_master() → master.load()",
+           text:"讀入正規化 Excel 並還原 Master；驗證 schema 與關聯一致性。",
+           reads:"口試主檔.xlsx", writes:"無", result:"Master 物件",
+           stop:"檔案不存在或格式錯誤時不進下一步。"},
+          {title:"重新檢核並呈現", owner:"validation / CLI", call:"validation.check(master) → _print_issues()",
+           text:"以目前規則重新計算問題，列出各代碼數量與是否阻擋產出。",
+           reads:"Master", writes:"只有終端文字", result:"問題摘要"}
+        ]
+      },
+      generate: {
+        summary:"generate 讀已建立的 Master。Application 選定行政階段並排除未放行案件，Workflow 決定可納入案件並調用產生器。",
+        meta:["入口：python -m koushi generate","選項：--phase pre-exam/post-exam","輸入：Master＋範本＋放行紀錄"],
+        steps:[
+          {title:"選擇產檔階段並套用人工關卡", owner:"Application", call:"generate_artifacts(phase, state_dir) → _unreviewed_case_issues()",
+           text:"兩個階段都必須給 state_dir：未放行案件先排除並以 CASE_REVIEW_PENDING 列出；口試後另排除尚未由全部指導教授確認附件 4 的案件（CONFIRMATION_PENDING）。",
+           reads:"Master、case_reviews.json、engines_state.json", writes:"無", result:"allowed Master＋被排除案件清單",
+           stop:"缺 state_dir 或 phase 不合法則不產檔。"},
+          {title:"確認範本與轉檔器", owner:"Workflow", call:"_validate_templates()／docx_template()",
+           text:"確認附件 4／6 範本；附件 4 是舊式 .doc，使用隔離的 LibreOffice 轉檔。",
+           reads:"附件 4／6 官方範本", writes:"必要時轉檔暫存資料", result:"可套用的範本",
+           stop:"缺範本或轉檔失敗會阻止正式附件產出。"},
+          {title:"投影至官方附件", owner:"generators", call:"attachment4.generate() ／ attachment6.generate()",
+           text:"口試前產附件 4（學位口試一覽）與預填附件 6；口試後產完整附件 6。附件 5 已取消。",
+           reads:"allowed Master、範本", writes:"DOCX／XLSX", result:"PreExamResult／PostExamResult"}
+        ]
+      },
+      status: {
+        summary:"status 從當前 Master 與上一輪狀態重算三個追蹤引擎，保存完整結果，再按 --term 篩選顯示。",
+        meta:["入口：python -m koushi status","讀：Master＋engines_state.json","寫：完整追蹤快照"],
+        steps:[
+          {title:"重算缺件", owner:"deficiency engine", call:"deficiency.scan(master, previous)",
+           text:"只拿阻擋產出的問題，對照上一輪保留通知日期與期限。",
+           reads:"Master、上一輪 deficiency", writes:"記憶體", result:"新增／已通知／逾期／已消失"},
+          {title:"重算教授確認與附件回收", owner:"confirmation / collection", call:"reconcile()",
+           text:"教授確認每學期、每位指導教授各一筆；這位教授名下案件鍵變動會重設確認。",
+           reads:"Master、上一輪狀態", writes:"記憶體", result:"確認與回收狀態"},
+          {title:"保存完整結果並篩選顯示", owner:"Application / CLI", call:"save_to_dir() → sync_issue_records() → print",
+           text:"保存全學期結果，同步 issue_records，再依 --term 篩選要顯示的報告。",
+           reads:"三份報告", writes:"engines_state.json、issue_records.json", result:"終端摘要"}
+        ]
+      },
+      remind: {
+        summary:"remind 與 status 共用對帳計算但不保存狀態；依系辦設定排催件與提醒，--send 才寄。",
+        meta:["入口：python -m koushi remind","預設：不寄信","參數：取自 settings.json"],
+        steps:[
+          {title:"取得當前追蹤報告", owner:"Application", call:"plan_reminders() → tracking_snapshot(persist=False)",
+           text:"重新計算缺件、教授確認、附件回收；已重送（resubmitted）的案件不再排補件催件。",
+           reads:"Master、engines_state.json、issue_records.json", writes:"無", result:"TrackingResult"},
+          {title:"分流催辦責任", owner:"Scheduler", call:"ReminderScheduler(deficiency_lead_days, business_days)",
+            text:"學生缺件在補件截止前幾天起每日最多一次；工作日計算排除國定假日；系辦責任的逾期缺件列成內部待辦。",
+           reads:"三份追蹤報告、系辦設定", writes:"記憶體", result:"scheduled、internal_todos"},
+          {title:"預覽或寄送", owner:"CLI / mail", call:"print 或 notify.send_scheduled()",
+           text:"預覽時使用 example.invalid 佔位地址；--send 才解析真實收件人並寄出、回寫節流狀態。",
+           reads:"ReminderPlan", writes:"--send 時寫 send_log 與節流狀態", result:"催辦計畫或已寄清單"}
+        ]
+      }
+    };
+
+    const make = (tag, attrs) => {
+      const el = document.createElementNS(svgNS, tag);
+      Object.entries(attrs || {}).forEach(([key, value]) => el.setAttribute(key, String(value)));
+      return el;
+    };
+    const edgeLayer = document.getElementById("edges");
+    const nodeLayer = document.getElementById("nodes");
+    const flowList = document.getElementById("flows");
+    const edgeElements = {};
+    const nodeElements = {};
+
+    function edgePath(a, b) {
+      const x1 = a.x + a.w, y1 = a.y + a.h / 2;
+      const x2 = b.x, y2 = b.y + b.h / 2;
+      const c = Math.max(68, (x2 - x1) * .54);
+      return "M " + x1 + " " + y1 + " C " + (x1 + c) + " " + y1 + ", " + (x2 - c) + " " + y2 + ", " + x2 + " " + y2;
+    }
+    edges.forEach(([from, to]) => {
+      const key = from + "-" + to;
+      const path = make("path", {d: edgePath(nodes[from], nodes[to]), class:"edge", "marker-end":"url(#arrow)", "data-edge":key});
+      edgeElements[key] = path;
+      edgeLayer.appendChild(path);
+    });
+    Object.entries(nodes).forEach(([id, n]) => {
+      const group = make("g", {class:"node " + n.kind, role:"button", tabindex:"0", "aria-label":n.label + "，查看模組責任", "data-node":id});
+      group.appendChild(make("rect", {class:"main", x:n.x, y:n.y, width:n.w, height:n.h, rx:8}));
+      group.appendChild(make("rect", {class:"bar", x:n.x, y:n.y, width:7, height:n.h, rx:3}));
+      const label = make("text", {class:"label", x:n.x + 20, y:n.y + 38}); label.textContent = n.label;
+      const path = make("text", {class:"path", x:n.x + 20, y:n.y + 65}); path.textContent = n.path;
+      group.append(label, path);
+      group.addEventListener("click", () => showNode(id));
+      group.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); showNode(id); }
+      });
+      nodeElements[id] = group;
+      nodeLayer.appendChild(group);
+    });
+
+    function setDetail(title, body, points) {
+      document.getElementById("detail-title").textContent = title;
+      document.getElementById("detail-body").textContent = body;
+      const list = document.getElementById("detail-points");
+      list.replaceChildren();
+      points.forEach(point => { const li = document.createElement("li"); li.textContent = point; list.appendChild(li); });
+    }
+    function highlight(activeNodes, activeEdges) {
+      const nodeSet = new Set(activeNodes);
+      const edgeSet = new Set(activeEdges);
+      Object.entries(nodeElements).forEach(([id, el]) => {
+        el.classList.toggle("active", nodeSet.has(id));
+        el.classList.toggle("quiet", !nodeSet.has(id));
+      });
+      Object.entries(edgeElements).forEach(([id, el]) => {
+        el.classList.toggle("active", edgeSet.has(id));
+        el.classList.toggle("quiet", !edgeSet.has(id));
+      });
+    }
+    function renderDeepFlow(id) {
+      const flow = flowDetails[id];
+      const selectedFlow = flows.find(item => item.id === id);
+      document.getElementById("deep-flow-title").textContent = "逐步呼叫鏈｜" + selectedFlow.label;
+      document.getElementById("deep-summary").textContent = flow.summary;
+      const meta = document.getElementById("deep-meta");
+      meta.replaceChildren();
+      flow.meta.forEach(value => {
+        const tag = document.createElement("span");
+        tag.className = "meta-tag";
+        tag.textContent = value;
+        meta.appendChild(tag);
+      });
+
+      const steps = document.getElementById("deep-steps");
+      steps.replaceChildren();
+      flow.steps.forEach((step, index) => {
+        const item = document.createElement("li");
+        item.className = "step";
+        item.dataset.step = String(index + 1).padStart(2, "0");
+
+        const head = document.createElement("div");
+        head.className = "step-head";
+        const title = document.createElement("h3");
+        title.textContent = step.title;
+        const owner = document.createElement("span");
+        owner.className = "step-owner";
+        owner.textContent = step.owner;
+        head.append(title, owner);
+        item.appendChild(head);
+
+        const call = document.createElement("code");
+        call.className = "call-chain";
+        call.textContent = step.call;
+        item.appendChild(call);
+
+        const description = document.createElement("p");
+        description.textContent = step.text;
+        item.appendChild(description);
+
+        const facts = document.createElement("dl");
+        facts.className = "step-facts";
+        [["讀取", step.reads], ["寫入", step.writes], ["結果", step.result]].forEach(([label, value]) => {
+          const row = document.createElement("div");
+          const term = document.createElement("dt");
+          term.textContent = label;
+          const detail = document.createElement("dd");
+          detail.textContent = value;
+          row.append(term, detail);
+          facts.appendChild(row);
+        });
+        item.appendChild(facts);
+
+        if (step.stop) {
+          const stop = document.createElement("p");
+          stop.className = "step-stop";
+          stop.textContent = "停止／例外：" + step.stop;
+          item.appendChild(stop);
+        }
+        steps.appendChild(item);
+      });
+    }
+    function showFlow(id) {
+      const flow = flows.find(item => item.id === id);
+      highlight(flow.nodes, flow.edges);
+      setDetail(flow.label, flow.body, flow.points);
+      renderDeepFlow(id);
+      document.querySelectorAll(".flow-button").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.flow === id)));
+    }
+    function showNode(id) {
+      const n = nodes[id];
+      highlight([id], edges.filter(pair => pair.includes(id)).map(pair => pair.join("-")));
+      setDetail(n.label + " · " + n.path, n.body, n.points);
+      document.querySelectorAll(".flow-button").forEach(button => button.setAttribute("aria-pressed", "false"));
+    }
+    flows.forEach((flow, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "flow-button";
+      button.dataset.flow = flow.id;
+      button.setAttribute("aria-pressed", "false");
+      button.innerHTML = '<span class="flow-number">' + String(index + 1).padStart(2, "0") + '</span><span></span>';
+      button.lastElementChild.textContent = flow.label;
+      button.addEventListener("click", () => showFlow(flow.id));
+      flowList.appendChild(button);
+    });
+
+    const pNode = (id, x, y, w, h, title, body, kind = "auto") => ({id, x, y, w, h, title, body, kind});
+    const pEdge = (from, to, label = "", options = {}) => ({from, to, label, ...options});
+    const processDiagrams = {
+      overview: {
+        title: "按時間發生的完整流程",
+        description: "從 Portal 申請、學生補充、截止日匯入附件2、檢核與補件、專員人工關卡，到教授確認、委員撥帳與口試後回收附件六。",
+        caption: "學生先補充、系辦在填寫截止日上傳附件2；隔天才正式檢核寄信。學生送出先驗證且不經系辦審核；專員放行後，教授確認與委員撥帳並行。任何來源修正都回到固定目前主檔重建與重檢。",
+        view: [0, 0, 1760, 620], minWidth: 1540,
+        nodes: [
+          pNode("portal", 30, 90, 205, 116, "1　Portal 正式申請", ["學生依校方流程申請", "本系統不介入"], "human"),
+          pNode("office", 520, 90, 215, 116, "3　填寫截止日", ["系辦上傳附件2（可提早／可重傳）", "截止與上傳都過了才正式檢核"], "human"),
+          pNode("student", 270, 90, 215, 116, "2　學生補充", ["只填附件 3，送出先驗證", "截止日（含）前可反覆修改"], "human"),
+          pNode("master", 770, 90, 215, 116, "4　重建目前主檔", ["附件2 多筆取最新後建案", "來源異常逐案例外"], "auto"),
+          pNode("blocked", 1020, 90, 190, 116, "5　人工關卡放行？", ["專員審委員資格與例外", "每案按「已處理」"], "gate"),
+          pNode("fix", 1020, 310, 190, 116, "補件／例外處理", ["曾收通知者截止前可改", "系辦修正來源後重檢"], "exception"),
+          pNode("att4", 1260, 25, 210, 116, "附件 4 確認線", ["寄全部指導教授", "目前可由系辦具名登錄"], "document"),
+          pNode("bank", 1260, 180, 210, 116, "委員撥帳線", ["先查舊口委資料庫", "不齊才寄信向本人索取"], "secure"),
+          pNode("join", 1510, 105, 205, 116, "口試前狀態", ["教授確認持續追蹤", "個資未齊列例外"], "gate"),
+          pNode("docs", 1510, 315, 205, 116, "建立口試文件", ["附件 6：場次紙本", "附件 5 已取消"], "document"),
+          pNode("oral", 1260, 470, 210, 116, "口試與回收", ["現場簽收，可補未交個資", "口試後收回附件 6"], "human"),
+          pNode("payment", 1010, 470, 210, 116, "既有撥帳系統", ["系辦依確認資料報支", "製作正式附件 7"], "human")
+        ],
+        edges: [
+          pEdge("portal", "student"), pEdge("student", "office"), pEdge("office", "master"), pEdge("master", "blocked"),
+          pEdge("blocked", "fix", "有問題", {fromSide:"bottom", toSide:"top", labelAt:[1115,270], kind:"exception"}),
+          pEdge("fix", "master", "修正後重跑", {fromSide:"left", toSide:"bottom", via:[[900,368],[900,235],[877,235]], labelAt:[900,292], kind:"return"}),
+          pEdge("blocked", "att4", "已放行", {fromSide:"right", toSide:"left", labelAt:[1232,72]}),
+          pEdge("blocked", "bank", "已放行", {fromSide:"right", toSide:"left", labelAt:[1234,242]}),
+          pEdge("blocked", "docs", "已放行即建立", {fromSide:"bottom", toSide:"left", via:[[1115,448],[1480,448],[1480,373]], labelAt:[1300,448]}),
+          pEdge("att4", "join", "確認追蹤", {fromSide:"right", toSide:"left", labelAt:[1490,72]}),
+          pEdge("bank", "join", "資料追蹤", {fromSide:"right", toSide:"bottom", labelAt:[1510,248]}),
+          pEdge("join", "oral", "口試前檢查", {fromSide:"bottom", toSide:"right", via:[[1612,430],[1495,430],[1495,528]], labelAt:[1550,430]}),
+          pEdge("docs", "oral", "列印交付", {fromSide:"left", toSide:"top", via:[[1365,373],[1365,448]], labelAt:[1365,420]}),
+          pEdge("oral", "payment", "回收後", {fromSide:"left", toSide:"right", labelAt:[1238,528]})
+        ]
+      },
+      documents: {
+        title: "附件 4、6 與委員個資索取要給誰",
+        description: "同一版主檔投影成不同用途的文件，但收件人、敏感程度與完成證據各不相同。",
+        caption: "附件 4 是教授確認文件，寄全部指導教授；自動線未完成前由系辦具名登錄狀態。附件 6 的交付與回收也在文件中心具名登錄；索取信只寄撥帳資料不齊者。附件 5 已取消。",
+        view: [0, 0, 1510, 650], minWidth: 1320,
+        nodes: [
+          pNode("master", 35, 250, 210, 116, "同一版口試主檔", ["文件唯一資料來源", "附件不反向覆寫主檔"], "auto"),
+          pNode("a4", 330, 30, 205, 108, "附件 4", ["學位口試一覽", "只含已放行案件"], "document"),
+          pNode("advisor", 625, 30, 220, 108, "全部指導教授", ["共同指導每位都確認", "確認無誤／需要修改"], "human"),
+          pNode("reply", 930, 30, 220, 108, "完成證據", ["Email 回信或具名人工登錄", "逾期不能視為同意"], "auto"),
+          pNode("a6", 330, 340, 205, 108, "附件 6", ["每場次口試費清冊", "紙本列印"], "document"),
+          pNode("committee", 625, 340, 220, 108, "口試委員本人", ["口試現場確認、簽收", "可補齊未交的撥帳資料"], "human"),
+          pNode("collect", 930, 340, 220, 108, "口試後回收", ["具名登錄合格／需補正", "處理人、時間寫入稽核"], "human"),
+          pNode("link", 330, 495, 205, 108, "個資索取信", ["只寄撥帳不齊的委員", "不經學生轉手"], "secure"),
+          pNode("direct", 625, 495, 220, 108, "缺資料的委員", ["回覆身分與銀行資料", "資料庫已有者不會收到"], "human"),
+          pNode("encrypted", 930, 495, 220, 108, "口委資料庫", ["系辦登錄、建檔時寫入", "加密與專屬連結日後處理"], "secure")
+        ],
+        edges: [
+          pEdge("master", "a4"), pEdge("a4", "advisor"), pEdge("advisor", "reply"),
+          pEdge("master", "a6"), pEdge("a6", "committee"), pEdge("committee", "collect"),
+          pEdge("master", "link"), pEdge("link", "direct"), pEdge("direct", "encrypted")
+        ]
+      },
+      exceptions: {
+        title: "補件、責任分流與逾期例外",
+        description: "每個問題都有問題代碼、責任標籤、期限及文件阻擋範圍；學生與系辦走不同處理路徑。",
+        caption: "學生補件的完成證據是重新送出完整表單，不是回覆 Email。截止只凍結該輪結果，不會把仍有缺件的案件自動視為完整。",
+        view: [0, 0, 1740, 650], minWidth: 1500,
+        nodes: [
+          pNode("detected", 30, 245, 205, 116, "發現問題", ["建立代碼、責任人", "期限與附件阻擋旗標"], "auto"),
+          pNode("owner", 275, 245, 190, 116, "誰負責處理？", ["學生／系辦／口試後", "同案可有多筆問題"], "gate"),
+          pNode("student", 530, 35, 215, 116, "學生責任", ["信中寫截止日、不秀代碼", "本輪曾通知者持續可改"], "human"),
+          pNode("deadline", 790, 35, 205, 116, "補件截止前？", ["截止前幾天起每日提醒", "已重送者停止催交"], "gate"),
+          pNode("resubmit", 1040, 35, 215, 116, "重新送出", ["建立完整新快照", "證據不是自由文字回信"], "human"),
+          pNode("overdue", 1040, 185, 215, 116, "逾期未完成", ["鎖住該輪輸入", "停止催件並排除受阻文件"], "exception"),
+          pNode("office", 530, 255, 215, 116, "系辦責任／例外", ["附件2、人數、資格、日期", "具名處理，不寄給學生"], "human"),
+          pNode("replace", 790, 255, 205, 116, "修正或人工判斷", ["可驗證問題修正權威來源", "資格例外由專員留痕"], "human"),
+          pNode("post", 530, 475, 215, 116, "口試後責任", ["追蹤附件 6 未回收", "或現場更正事項"], "human"),
+          pNode("collect", 790, 475, 205, 116, "回收／登錄", ["補足完成證據", "必要時更新共用資料"], "human"),
+          pNode("recheck", 1310, 255, 205, 116, "自動重建與重檢", ["只在問題真的消失時", "自動標記已解決"], "auto"),
+          pNode("result", 1545, 255, 165, 116, "檢核結果", ["通過：問題解除", "未過：回責任人"], "gate")
+        ],
+        edges: [
+          pEdge("detected", "owner"),
+          pEdge("owner", "student", "學生", {fromSide:"top", toSide:"left", labelAt:[492,124]}),
+          pEdge("owner", "office", "系辦", {fromSide:"right", toSide:"left", labelAt:[497,313]}),
+          pEdge("owner", "post", "口試後", {fromSide:"bottom", toSide:"left", labelAt:[490,537]}),
+          pEdge("student", "deadline"), pEdge("deadline", "resubmit", "未到期", {labelAt:[1018,94]}),
+          pEdge("deadline", "overdue", "已到期", {fromSide:"bottom", toSide:"left", labelAt:[1018,206], kind:"exception"}),
+          pEdge("resubmit", "recheck", "送出後", {fromSide:"right", toSide:"top", via:[[1278,93],[1278,230],[1412,230]], labelAt:[1278,174]}),
+          pEdge("office", "replace"), pEdge("replace", "recheck"),
+          pEdge("post", "collect"), pEdge("collect", "recheck", "登錄後", {fromSide:"right", toSide:"bottom", via:[[1160,533],[1160,407],[1412,407]], labelAt:[1160,465]}),
+          pEdge("recheck", "result"),
+          pEdge("result", "owner", "仍有問題", {fromSide:"bottom", toSide:"bottom", via:[[1627,625],[370,625],[370,390]], labelAt:[1020,625], kind:"return"})
+        ]
+      },
+      professor: {
+        title: "附件 4 的教授確認與回信判讀",
+        description: "確定性欄位先核對信件身分與版本，再由 LLM 判讀語意；只有明確確認才能自動放行。",
+        caption: "自動寄送與判讀完成前，系辦可具名登錄已寄出／已確認／需修改；之後仍保留作人工覆核。教授未回覆、舊版本或語意不清都不能自動同意。",
+        view: [0, 0, 1990, 610], minWidth: 1700,
+        nodes: [
+          pNode("version", 30, 220, 215, 116, "附件 4 當前版本", ["只含已放行案件", "綁定案件與內容版本"], "document"),
+          pNode("send", 285, 220, 205, 116, "寄全部指導教授", ["每位各一筆確認", "可先由系辦具名登錄寄出"], "auto"),
+          pNode("wait", 530, 220, 185, 116, "收到回信？", ["持續追蹤期限", "不以已寄出當完成"], "gate"),
+          pNode("noreply", 760, 45, 205, 116, "期限內未回", ["依政策寄提醒", "仍維持等待"], "auto"),
+          pNode("late", 1010, 45, 205, 116, "到期仍未回", ["標記逾期並建待辦", "不能自動視為同意"], "exception"),
+          pNode("mail", 760, 250, 205, 116, "收到自由文字回信", ["保存原信與時間", "進入確定性核對"], "human"),
+          pNode("check", 1010, 250, 220, 116, "信件資料核對", ["寄件者、信件串、教授", "期限與當前文件版本"], "auto"),
+          pNode("valid", 1275, 250, 185, 116, "核對通過？", ["規則判斷", "不交給模型猜測"], "gate"),
+          pNode("llm", 1505, 185, 215, 116, "LLM 判讀語意", ["確認／修改／疑問", "或無法判定"], "auto"),
+          pNode("confirmed", 1765, 35, 195, 108, "確認無誤", ["保存判讀與版本證據", "自動放行下一關"], "secure"),
+          pNode("modified", 1765, 200, 195, 108, "需要修改", ["修正來源與主檔", "重檢後產新版附件 4"], "exception"),
+          pNode("manual", 1505, 405, 215, 116, "系辦人工審查", ["必填處理人與備註", "版本不符、語意模糊或矛盾"], "human")
+        ],
+        edges: [
+          pEdge("version", "send"), pEdge("send", "wait"),
+          pEdge("wait", "noreply", "未回", {fromSide:"top", toSide:"left", labelAt:[738,103]}),
+          pEdge("noreply", "late", "逾期", {kind:"exception"}),
+          pEdge("wait", "mail", "已回", {fromSide:"right", toSide:"left", labelAt:[738,309]}),
+          pEdge("mail", "check"), pEdge("check", "valid"),
+          pEdge("valid", "llm", "通過", {fromSide:"right", toSide:"left", labelAt:[1483,243]}),
+          pEdge("valid", "manual", "不符", {fromSide:"bottom", toSide:"top", labelAt:[1368,405], kind:"exception"}),
+          pEdge("llm", "confirmed", "明確確認", {fromSide:"right", toSide:"left", labelAt:[1742,91]}),
+          pEdge("llm", "modified", "要求修改", {fromSide:"right", toSide:"left", labelAt:[1742,257], kind:"exception"}),
+          pEdge("llm", "manual", "疑問／模糊", {fromSide:"bottom", toSide:"top", labelAt:[1612,366], kind:"exception"}),
+          pEdge("modified", "version", "產生新版再寄", {fromSide:"bottom", toSide:"bottom", via:[[1862,570],[137,570],[137,365]], labelAt:[1000,570], kind:"return"})
+        ]
+      },
+      banking: {
+        title: "歷史委員免重填的撥帳資料流程",
+        description: "專員放行後，委員先比對舊口委資料庫；只有新委員、資料不完整或無法唯一辨識者才收到索取信。",
+        caption: "學生提供姓名、單位、Email 與是否視訊出席，但不接觸身分證或帳號。視訊出席者交通費為 0；口試費暫套碩 3／博 6 人上限，計算單位仍待系辦確認。",
+        view: [0, 0, 1780, 640], minWidth: 1540,
+        nodes: [
+          pNode("input", 30, 235, 220, 116, "本次委員基本資料", ["姓名、單位、Email、視訊", "由學生提供，不含敏感資料"], "human"),
+          pNode("match", 295, 235, 215, 116, "比對舊口委資料庫", ["身分證，或", "姓名＋單位唯一相符"], "auto"),
+          pNode("unique", 555, 235, 190, 116, "能唯一確認？", ["查無、同名或衝突", "都不能勉強合併"], "gate"),
+          pNode("complete", 800, 70, 205, 116, "歷史資料完整？", ["身分與撥帳資料", "目前仍可使用"], "gate"),
+          pNode("reuse", 1050, 70, 210, 116, "直接沿用", ["不寄信、不要求重填", "姓名比對者標給專員確認"], "secure"),
+          pNode("link", 800, 330, 205, 116, "寄索取信", ["以 E-mail 合併只寄一封", "學生不經手"], "secure"),
+          pNode("fill", 1050, 330, 210, 116, "委員回覆", ["系辦具名登錄並寫稽核", "專屬表單日後處理"], "human"),
+          pNode("encrypt", 1305, 330, 205, 116, "寫入口委資料庫", ["建檔時疊加", "加密日後處理"], "secure"),
+          pNode("done", 1305, 70, 205, 116, "撥帳資料完成", ["授權系辦可用完整值", "學生只看完成／未完成"], "auto"),
+          pNode("paper", 1545, 235, 205, 116, "附件 6 紙本覆核", ["口試現場確認", "口試將至仍未交列例外"], "document")
+        ],
+        edges: [
+          pEdge("input", "match"), pEdge("match", "unique"),
+          pEdge("unique", "complete", "是", {fromSide:"top", toSide:"left", labelAt:[772,128]}),
+          pEdge("unique", "link", "否", {fromSide:"bottom", toSide:"left", labelAt:[772,388], kind:"exception"}),
+          pEdge("complete", "reuse", "完整", {labelAt:[1027,128]}),
+          pEdge("complete", "link", "不完整", {fromSide:"bottom", toSide:"top", labelAt:[902,260], kind:"exception"}),
+          pEdge("link", "fill"), pEdge("fill", "encrypt"),
+          pEdge("reuse", "done"),
+          pEdge("encrypt", "done", "更新完成", {fromSide:"top", toSide:"bottom", labelAt:[1407,258]}),
+          pEdge("done", "paper", "口試時", {fromSide:"right", toSide:"left", labelAt:[1527,293]})
+        ]
+      },
+      people: {
+        title: "所有需要人操作或回覆的關卡",
+        description: "把學生、系辦、指導教授與口試委員放在各自泳道，顯示每個人的責任與交接。",
+        caption: "每一個人工關卡都必須有負責人姓名、截止時刻、完成證據與稽核紀錄。系統可以提醒與判讀，但不應把『已寄出』誤當成『人已完成』。",
+        view: [0, 0, 1760, 700], minWidth: 1530,
+        lanes: [
+          {x:20,y:25,w:1720,h:135,label:"學生"}, {x:20,y:180,w:1720,h:135,label:"系辦／現場承辦"},
+          {x:20,y:335,w:1720,h:135,label:"指導教授"}, {x:20,y:490,w:1720,h:135,label:"口試委員"}
+        ],
+        nodes: [
+          pNode("s1", 110, 52, 195, 94, "Portal 正式申請", ["建立正式案件"], "human"),
+          pNode("s2", 390, 52, 210, 94, "填寫截止前補充", ["送出先驗證、可反覆修改"], "human"),
+          pNode("s3", 1160, 52, 210, 94, "收到問題後補件", ["重新送出完整版本"], "human"),
+          pNode("s4", 1450, 52, 210, 94, "補件截止後鎖定", ["看不到委員帳號"], "human"),
+          pNode("o1", 250, 207, 205, 94, "截止日上傳附件2", ["唯一案件來源"], "human"),
+          pNode("o2", 535, 207, 205, 94, "人工關卡放行", ["具名審核、按已處理"], "human"),
+          pNode("o3", 1090, 207, 205, 94, "處理系辦例外", ["具名修正／登錄並稽核"], "human"),
+          pNode("o4", 1370, 207, 205, 94, "列印／回收附件 6", ["具名登錄合格／需補正"], "human"),
+          pNode("a1", 740, 362, 215, 94, "收到附件 4", ["共同指導每位都收到"], "human"),
+          pNode("a2", 1025, 362, 215, 94, "回覆確認或修改", ["自由文字 Email"], "human"),
+          pNode("c1", 740, 517, 215, 94, "必要時收到索取信", ["資料庫已有者免"], "human"),
+          pNode("c2", 1025, 517, 215, 94, "回覆撥帳資料", ["系辦登錄，不經學生"], "human"),
+          pNode("c3", 1310, 517, 215, 94, "口試現場看附件 6", ["確認、更正或簽收"], "human")
+        ],
+        edges: [
+          pEdge("s1", "o1", "下載匯入", {fromSide:"bottom", toSide:"top", labelAt:[270,176]}),
+          pEdge("s2", "o2", "截止後檢核", {fromSide:"bottom", toSide:"top", labelAt:[555,176]}),
+          pEdge("o2", "a1", "放行後附件 4", {fromSide:"bottom", toSide:"top", labelAt:[747,332]}),
+          pEdge("a1", "a2"), pEdge("a2", "o3", "需修改／例外", {fromSide:"top", toSide:"bottom", labelAt:[1150,332], kind:"exception"}),
+          pEdge("o3", "s3", "學生責任", {fromSide:"top", toSide:"bottom", labelAt:[1195,176], kind:"exception"}),
+          pEdge("o2", "c1", "放行後缺撥帳", {fromSide:"bottom", toSide:"top", via:[[637,325],[847,325],[847,492]], labelAt:[750,325]}),
+          pEdge("c1", "c2"), pEdge("c2", "c3"),
+          pEdge("c3", "o4", "口試後交回", {fromSide:"top", toSide:"bottom", labelAt:[1420,479]}),
+          pEdge("c2", "s4", "只回寫狀態", {fromSide:"top", toSide:"bottom", via:[[1132,480],[1555,480],[1555,170]], labelAt:[1502,480]})
+        ]
+      },
+      automation: {
+        title: "不需人工判斷的自動化流程",
+        description: "資料到達、時間到達或教授回信到達後，系統可以自行完成的確定性處理與狀態轉移。",
+        caption: "自動化不是取消人工關卡，而是讓系統一路跑到下一個真正需要人判斷或提供資料的地方，並留下版本、寄送與狀態證據。",
+        view: [0, 0, 1840, 640], minWidth: 1580,
+        nodes: [
+          pNode("event", 30, 160, 210, 116, "來源資料到達", ["附件2 上傳、學生送出", "或參照檔、委員回填"], "auto"),
+          pNode("version", 280, 160, 205, 116, "保存來源版本", ["多筆 Portal 取簽核最新", "保留上一版"], "auto"),
+          pNode("parse", 525, 160, 205, 116, "解析與正規化", ["來源錯誤逐案例外", "同案委員姓名優先對應"], "auto"),
+          pNode("master", 770, 160, 205, 116, "比對並重建主檔", ["計算交通費與口試費", "發布 current＋當日快照"], "auto"),
+          pNode("validate", 1015, 160, 205, 116, "規則檢核", ["資格、衝突、責任", "文件阻擋範圍"], "auto"),
+          pNode("gate", 1260, 160, 185, 116, "可自動繼續？", ["有問題就停在人關", "沒有則產文件"], "gate"),
+          pNode("docs", 1490, 45, 205, 116, "文件投影與版本", ["附件 4／6（已放行案件）", "從同版主檔產生"], "document"),
+          pNode("todo", 1490, 225, 205, 116, "建立待辦與期限", ["通知正確責任人", "不把問題寄錯對象"], "exception"),
+          pNode("audit", 1600, 430, 205, 116, "稽核時間線", ["記錄版本、判讀", "寄送與狀態轉移"], "secure"),
+          pNode("clock", 280, 430, 205, 116, "每日排程到達", ["依時段：填寫／補件／截止後", "失敗狀態回報總覽"], "auto"),
+          pNode("deadline", 525, 430, 205, 116, "更新期限狀態", ["假日排除、防重寄", "硬截止時鎖表"], "auto"),
+          pNode("reply", 810, 430, 205, 116, "教授回信到達", ["擷取原信與信件串", "交給確認管線"], "auto"),
+          pNode("meta", 1055, 430, 205, 116, "確定性核對", ["寄件者、版本、期限", "不符即轉人工"], "auto"),
+          pNode("intent", 1300, 430, 205, 116, "LLM 判讀意圖", ["明確確認自動放行", "其餘建立人工待辦"], "auto")
+        ],
+        edges: [
+          pEdge("event", "version"), pEdge("version", "parse"), pEdge("parse", "master"), pEdge("master", "validate"), pEdge("validate", "gate"),
+          pEdge("gate", "docs", "通過", {fromSide:"top", toSide:"left", labelAt:[1467,103]}),
+          pEdge("gate", "todo", "有問題", {fromSide:"bottom", toSide:"left", labelAt:[1467,283], kind:"exception"}),
+          pEdge("clock", "deadline"), pEdge("deadline", "audit", "狀態與寄送證據", {fromSide:"right", toSide:"left", via:[[755,488],[755,590],[1575,590],[1575,488]], labelAt:[1165,590]}),
+          pEdge("reply", "meta"), pEdge("meta", "intent"), pEdge("intent", "audit"),
+          pEdge("docs", "audit", "產檔證據", {fromSide:"bottom", toSide:"top", via:[[1592,382],[1702,382],[1702,405]], labelAt:[1650,382]}),
+          pEdge("todo", "audit", "待辦證據", {fromSide:"bottom", toSide:"left", labelAt:[1585,385]})
+        ]
+      }
+    };
+
+    const processGraph = document.getElementById("process-graph");
+    const processMapTitle = document.getElementById("process-map-title");
+    const processCaption = document.getElementById("process-caption");
+    function processSvgElement(tag, attributes = {}) {
+      const element = document.createElementNS(svgNS, tag);
+      Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+      return element;
+    }
+    function processAnchor(node, side) {
+      const points = {
+        left: [node.x, node.y + node.h / 2], right: [node.x + node.w, node.y + node.h / 2],
+        top: [node.x + node.w / 2, node.y], bottom: [node.x + node.w / 2, node.y + node.h]
+      };
+      return points[side];
+    }
+    function processEdgeGeometry(edge, lookup) {
+      const from = lookup[edge.from];
+      const to = lookup[edge.to];
+      const dx = (to.x + to.w / 2) - (from.x + from.w / 2);
+      const dy = (to.y + to.h / 2) - (from.y + from.h / 2);
+      const horizontal = Math.abs(dx) >= Math.abs(dy);
+      const fromSide = edge.fromSide || (horizontal ? (dx >= 0 ? "right" : "left") : (dy >= 0 ? "bottom" : "top"));
+      const toSide = edge.toSide || (horizontal ? (dx >= 0 ? "left" : "right") : (dy >= 0 ? "top" : "bottom"));
+      const start = processAnchor(from, fromSide);
+      const end = processAnchor(to, toSide);
+      let points = [start];
+      if (edge.via) {
+        points = points.concat(edge.via);
+      } else if (start[0] !== end[0] && start[1] !== end[1]) {
+        if (horizontal) {
+          const middleX = (start[0] + end[0]) / 2;
+          points.push([middleX, start[1]], [middleX, end[1]]);
+        } else {
+          const middleY = (start[1] + end[1]) / 2;
+          points.push([start[0], middleY], [end[0], middleY]);
+        }
+      }
+      points.push(end);
+      return points;
+    }
+    function renderProcessDiagram(id) {
+      const diagram = processDiagrams[id];
+      const [vx, vy, vw, vh] = diagram.view;
+      processGraph.replaceChildren();
+      processGraph.setAttribute("viewBox", [vx, vy, vw, vh].join(" "));
+      processGraph.style.minWidth = diagram.minWidth + "px";
+
+      const title = processSvgElement("title", {id:"process-graph-title"});
+      title.textContent = diagram.title;
+      const desc = processSvgElement("desc", {id:"process-graph-desc"});
+      desc.textContent = diagram.description;
+      const defs = processSvgElement("defs");
+      const marker = processSvgElement("marker", {id:"process-arrow", viewBox:"0 0 10 10", refX:"8", refY:"5", markerWidth:"7", markerHeight:"7", orient:"auto-start-reverse"});
+      marker.appendChild(processSvgElement("path", {d:"M 0 0 L 10 5 L 0 10 z", fill:"#78939f"}));
+      defs.appendChild(marker);
+      processGraph.append(title, desc, defs);
+
+      (diagram.lanes || []).forEach(lane => {
+        const group = processSvgElement("g");
+        group.appendChild(processSvgElement("rect", {x:lane.x, y:lane.y, width:lane.w, height:lane.h, class:"process-lane"}));
+        const text = processSvgElement("text", {x:lane.x + 14, y:lane.y + 23, class:"process-lane-title"});
+        text.textContent = lane.label;
+        group.appendChild(text);
+        processGraph.appendChild(group);
+      });
+
+      const lookup = Object.fromEntries(diagram.nodes.map(node => [node.id, node]));
+      diagram.edges.forEach(edge => {
+        const points = processEdgeGeometry(edge, lookup);
+        const path = processSvgElement("path", {
+          d: points.map((point, index) => (index ? "L" : "M") + point[0] + " " + point[1]).join(" "),
+          class: "process-edge" + (edge.kind ? " " + edge.kind : "")
+        });
+        processGraph.appendChild(path);
+        if (edge.label) {
+          const fallback = points[Math.floor(points.length / 2)];
+          const [labelX, labelY] = edge.labelAt || fallback;
+          const label = processSvgElement("text", {x:labelX, y:labelY - 6, class:"process-edge-label"});
+          label.textContent = edge.label;
+          processGraph.appendChild(label);
+        }
+      });
+
+      diagram.nodes.forEach(node => {
+        const group = processSvgElement("g", {class:"process-node " + node.kind});
+        group.appendChild(processSvgElement("rect", {x:node.x, y:node.y, width:node.w, height:node.h, rx:"5", class:"main"}));
+        group.appendChild(processSvgElement("rect", {x:node.x, y:node.y, width:node.w, height:"7", rx:"5", class:"bar"}));
+        const heading = processSvgElement("text", {x:node.x + 15, y:node.y + 31, class:"process-node-title"});
+        heading.textContent = node.title;
+        group.appendChild(heading);
+        const body = processSvgElement("text", {x:node.x + 15, y:node.y + 58, class:"process-node-body"});
+        node.body.forEach((line, index) => {
+          const span = processSvgElement("tspan", {x:node.x + 15, dy:index ? "19" : "0"});
+          span.textContent = line;
+          body.appendChild(span);
+        });
+        group.appendChild(body);
+        processGraph.appendChild(group);
+      });
+
+      processMapTitle.textContent = diagram.title;
+      processCaption.textContent = diagram.caption;
+      document.querySelectorAll(".process-tab").forEach(button => {
+        button.setAttribute("aria-selected", String(button.dataset.process === id));
+      });
+    }
+    const processTabs = Array.from(document.querySelectorAll(".process-tab"));
+    processTabs.forEach((button, index) => {
+      button.addEventListener("click", () => renderProcessDiagram(button.dataset.process));
+      button.addEventListener("keydown", event => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        const offset = event.key === "ArrowRight" ? 1 : -1;
+        const next = processTabs[(index + offset + processTabs.length) % processTabs.length];
+        next.focus();
+        renderProcessDiagram(next.dataset.process);
+      });
+    });
+    renderProcessDiagram("overview");
+    showFlow("process");
+  </script>
+</body>
+</html>

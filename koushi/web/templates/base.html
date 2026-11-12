@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}口試資料填寫系統{% endblock %}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif; background: #F7F6F2; color: #1B2430; line-height: 1.6; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 1.4rem; margin-bottom: 1rem; color: #1B2430; }
+        h2 { font-size: 1.1rem; margin: 1.5rem 0 0.8rem; padding-bottom: 0.3rem; border-bottom: 2px solid #1B2430; color: #1B2430; }
+        .flash { padding: 10px 16px; margin-bottom: 16px; border-radius:2px; font-size: 13px; }
+        .flash.success { background: #e7f3ed; color: #1f5e46; border: 1px solid #bfe3d1; }
+        .flash.error { background: #fbe9e7; color: #8a2f22; border: 1px solid #f3c6bd; }
+        .flash.info { background: #fff6e2; color: #6b4a10; border: 1px solid #f0d69b; }
+        .simulation-banner { padding: 12px 18px; margin-bottom: 20px; background: #fff2d9; color: #6b4a10; border: 1px solid #f0d69b; border-radius:2px; font-size: 13px; }
+        a { color: #3F6C60; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .btn { display: inline-block; padding: 8px 20px; border: none; border-radius:2px; cursor: pointer; font-size: 0.95rem; text-decoration: none; font-weight: 600; }
+        .btn-primary { background: #3F6C60; color: #fff; }
+        .btn-primary:hover { background: #2F5449; text-decoration: none; }
+        .btn-secondary { background: #EDEAE2; color: #1B2430; }
+        .btn-danger { background: #c62828; color: #fff; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #E4E1D8; }
+        th { background: #EFEDE6; font-weight: 700; color: #1B2430; font-size: 0.85rem; }
+        tr:hover { background: #FAFAF6; }
+        form label { display: block; font-weight: 600; margin-top: 12px; margin-bottom: 4px; font-size: 0.9rem; }
+        form input, form select, form textarea { width: 100%; padding: 8px 10px; border: 1px solid #D7D2C4; border-radius:2px; font-size: 0.95rem; }
+        form input:focus, form select:focus, form textarea:focus { outline: none; border-color: #3F6C60; box-shadow: none; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .committee-card { background: #fff; border: 1px solid #E4E1D8; border-radius:2px; padding: 16px; margin-bottom: 12px; position: relative; }
+        .committee-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .committee-card .card-header span { font-weight: 700; color: #1B2430; }
+        .remove-btn { background: none; border: none; color: #c62828; cursor: pointer; font-size: 1.2rem; padding: 4px 8px; }
+        .section { background: #fff; border-radius:2px; padding: 20px; margin-bottom: 16px; border: 1px solid #E4E1D8; }
+        .submit-area { text-align: center; padding: 20px 0; }
+        .required::after { content: " *"; color: #c62828; }
+        .hint { font-size: 0.8rem; color: #5B6472; margin-top: 2px; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+        {% if judge_mode %}<div class="simulation-banner" role="status"><b>{{ judge_banner }}</b></div>{% endif %}
+        {% if demo_info %}<div class="simulation-banner" role="status">模擬展示 · {{ demo_info.label }} · {{ demo_now.strftime('%Y-%m-%d %H:%M') }} · 假資料</div>{% endif %}
+    {% block content %}{% endblock %}
+    </div>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

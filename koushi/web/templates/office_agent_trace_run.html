@@ -1,0 +1,78 @@
+{% extends "office_base.html" %}
+{% block title %}Agent 執行軌跡{% endblock %}
+{% block breadcrumb %}<a href="{{ url_for('office_agent_trace') }}">AI 處理紀錄</a> <span class="slash">/</span> {{ s.agent_label }}{% endblock %}
+{% block extra_head %}
+<style>
+    .run-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 24px;margin-top:10px}
+    .run-meta div{font-size:13px}.run-meta b{display:block;font-size:12px;color:var(--muted);font-weight:600}
+    .step-table td{vertical-align:top;white-space:normal}
+    .step-table pre{white-space:pre-wrap;max-height:220px;overflow:auto;background:#FAF8F2;padding:6px 8px;margin:0;font-size:12px}
+    .step-table small{color:var(--muted)}
+</style>
+{% endblock %}
+{% macro step_rows(items) %}
+{% for st in items %}
+<tr>
+    <td class="num">{{ loop.index }}</td>
+    <td><b title="{{ st.step }}">{{ st.step|step_label(st.input_summary) }}</b><br><small>{{ st.at|fmt_time }} · #{{ st.sequence }}</small></td>
+    <td><small>{{ st.tool or '—' }}{% if st.model %}<br>{{ st.model }} {{ st.prompt_version or '' }}{% endif %}</small></td>
+    <td><small>{{ (st.input_summary|codes_to_labels) or '—' }}</small></td>
+    <td>{% if st.output is not none %}{{ st.output|readable }}<details><summary><small>原始資料</small></summary><pre>{{ pretty(st.output) }}</pre></details>{% else %}<small>—</small>{% endif %}
+        {% if st.error %}<p class="error" style="margin:4px 0 0;"><small>錯誤：{{ st.error }}</small></p>{% endif %}</td>
+    <td>{% if st.decision %}{{ st.decision|decision_label }}{% else %}<small>—</small>{% endif %}
+        {% if st.human_required %}<br><span class="badge review">需人工</span>{% endif %}</td>
+    <td class="num">{{ st.latency_ms if st.latency_ms is not none else '—' }}</td>
+    <td class="num"><small>{% if st.usage %}{{ st.usage.prompt_tokens or 0 }}／{{ st.usage.completion_tokens or 0 }}{% else %}—{% endif %}</small></td>
+</tr>
+{% endfor %}
+{% endmacro %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>{{ s.agent_label }} 執行軌跡</h1>
+        <p>主題：{% if s.question %}問題「{{ s.question }}」{% else %}{{ (title or s.subject)|codes_to_labels or '—' }}{% endif %}　·　<small title="追蹤鍵 {{ s.subject }}">執行代號 {{ s.run_id }}</small></p>
+    </div>
+    <div>
+        <a class="row-action" href="{{ url_for('agent_trace_export', tid=s.task_id) }}">下載 JSON（可查核 trace）</a>
+        <a class="row-action" href="{{ url_for('office_agent_trace') }}">回到清單</a>
+    </div>
+</div>
+
+<div class="case-section">
+    <div class="section-heading"><h2>摘要</h2></div>
+    <div class="run-meta">
+        <div><b>開始／結束</b>{{ s.started_at|fmt_time }}<br>{{ s.ended_at|fmt_time }}</div>
+        <div><b>系統步驟／專員步驟</b>{{ s.steps }}／{{ s.staff_steps }}</div>
+        <div><b>最後決策</b>{{ s.final_decision|decision_label or '—' }}{% if s.human_required %}（需人工）{% endif %}</div>
+        <div><b>完成／有效產出</b>{{ '是' if s.completed else '否' }}／{{ '是' if s.useful else '否' }}</div>
+        <div><b>模型／prompt 版本</b>{{ s.model or '—' }}／{{ s.prompt_version or '—' }}</div>
+        <div><b>總延遲</b>{{ s.latency_ms if s.latency_ms is not none else '—' }} ms</div>
+        <div><b>token（入／出）</b>{{ s.prompt_tokens }}／{{ s.completion_tokens }}</div>
+        <div><b>錯誤</b>{% if s.errors %}{{ s.errors|join('；') }}{% else %}無{% endif %}</div>
+    </div>
+    <p class="footnote">步驟依實際發生順序排列：「模型判讀（第 n 次）」是每一次呼叫模型的檢核結果，「判讀結果彙整」是最後採用的分析，所以排在嘗試之後。「完成」「有效產出」的定義與「Agent 指標」頁相同。內容已遮蔽：8 碼以上數字遮成 *、電子郵件只留首字與網域。</p>
+</div>
+
+<div class="case-section">
+    <div class="section-heading"><h2>步驟 <span class="total-count">{{ run.steps|length }}</span></h2></div>
+    <div class="table-scroll"><table class="step-table">
+        <thead><tr><th scope="col" class="num">#</th><th scope="col">步驟</th><th scope="col">工具／模型</th><th scope="col">輸入摘要</th>
+            <th scope="col">輸出</th><th scope="col">決策</th><th scope="col" class="num">延遲 ms</th><th scope="col" class="num">token</th></tr></thead>
+        <tbody>{{ step_rows(run.steps) }}</tbody>
+    </table></div>
+    {% if not run.steps %}<p class="footnote">這次執行只有專員處理紀錄。</p>{% endif %}
+</div>
+
+<div class="case-section">
+    <div class="section-heading"><h2>專員決定 <span class="total-count">{{ run.staff_decisions|length }}</span></h2></div>
+    {% if run.staff_decisions %}
+    <div class="table-scroll"><table class="step-table">
+        <thead><tr><th scope="col" class="num">#</th><th scope="col">步驟</th><th scope="col">介面／動作</th><th scope="col">輸入摘要</th>
+            <th scope="col">結果</th><th scope="col">決策</th><th scope="col" class="num">延遲 ms</th><th scope="col" class="num">token</th></tr></thead>
+        <tbody>{{ step_rows(run.staff_decisions) }}</tbody>
+    </table></div>
+    {% else %}
+    <p class="footnote keep">尚無專員決定。{% if s.human_required %}這次執行需要專員處理，請到{% if s.agent == 'mailbox' %}「來信處理」{% elif s.agent == 'assistant' %}「問答助理」{% else %}「AI 建議」{% endif %}頁。{% endif %}</p>
+    {% endif %}
+</div>
+{% endblock %}

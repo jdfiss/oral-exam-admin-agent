@@ -1,0 +1,11 @@
+{% extends layout %}
+{% block title %}{{ heading }}{% endblock %}
+{% block breadcrumb %}{{ heading }}{% endblock %}
+{% block content %}
+<div class="{{ 'panel' if layout == 'office_base.html' else 'section' }}" role="alert">
+    <h1>{{ heading }}</h1>
+    <p>{{ message }}</p>
+    {% if hint %}<p class="{{ 'footnote' if layout == 'office_base.html' else 'hint' }}">{{ hint }}</p>{% endif %}
+    <p style="margin-top:12px;"><a class="{{ 'row-action' if layout == 'office_base.html' else 'btn btn-secondary' }}" href="{{ back_url }}">{{ back_label }}</a></p>
+</div>
+{% endblock %}

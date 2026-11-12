@@ -1,0 +1,32 @@
+{% extends "office_base.html" %}
+{% block title %}模擬時間與每日流程{% endblock %}
+{% block breadcrumb %}模擬時間與每日流程{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>模擬時間與每日流程</h1><p><b>這頁要做的事：</b>按「執行本日流程」讓系統跑一次今天的工作（寄信、讀回信、產生建議）{% if judge_mode %}，寄出的信到「模擬寄件匣」看{% endif %}。「推進一天」可以把模擬日期往後撥。</p>
+<details class="page-more explain"><summary>更多說明</summary><p>（本頁舊名「展示控制台」。）{% if judge_mode %}{{ who }}模式：假資料、不寄任何真實信件，系統寄出的信都在「模擬寄件匣」，回信也在那裡模擬。{% else %}假資料、真實收發信。{% endif %}每次重設開啟一輪獨立情境，舊信件不影響新一輪。{% if judge_mode and not is_judge %}<b>試用中請不要按「重設並載入新一輪」</b>，否則已準備好的待辦會被清掉。{% endif %}</p></details></div></div>
+<div class="panel"><h2>目前情境：{{ meta.label }}</h2><p>模擬日期 {{ demo_now.strftime('%Y-%m-%d %H:%M') }} · {{ phase_label }}</p>
+<form method="post" class="actions-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="advance"><button name="days" value="1">推進一天</button><button name="days" value="7">推進七天</button></form>
+<form method="post" class="actions-inline" style="margin-top:12px"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button name="action" value="preview">預覽本日流程</button><button name="action" value="send" class="primary">{{ '執行本日流程（信件進模擬寄件匣）' if judge_mode else '執行本日流程並真實寄收信' }}</button></form>
+<details class="tiny-more explain"><summary>說明</summary><p>填寫期不寄信。重跑同一輪不重寄已成功的通知；{% if judge_mode %}在「模擬寄件匣」模擬教授或委員回信後，再按執行，信箱 agent 才會讀取回信。{% else %}教授回覆最新一封確認信後，再按執行讀取回信。{% endif %}</p></details>
+{% if automation %}<p role="status">最近執行：{{ automation.at }} · {{ '成功' if automation.ok else '失敗' }} {{ automation.error }}</p>{% endif %}</div>
+<div class="panel"><h2>四個獨立情境</h2><form method="post" class="actions-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reset"><label for="scenario">選擇情境</label><select id="scenario" name="scenario">{% for key,label in scenarios.items() %}<option value="{{ key }}" {{ 'selected' if key == meta.scenario else '' }}>{{ label }}</option>{% endfor %}</select><button type="submit">重設並載入新一輪</button></form>
+<details class="page-more"><summary>各情境操作步驟</summary>
+<p>學生學號：999900001（從登入頁「學生登入」輸入）。缺件情境預留未送出的暫存，學生登入後可接續填寫。</p>
+{% if judge_mode %}
+<ol class="footnote" style="margin:8px 0 0 18px;">
+    <li><b>正常完成</b>：推進一天 → 執行本日流程 → 工作總覽放行 → 再執行 → 「模擬寄件匣」看附件4 確認信與委員個資索取 → 對確認信按「模擬收件人回信」寫「確認無誤」→ 執行 → 文件中心判讀。</li>
+    <li><b>學生缺件</b>：推進一天 → 執行 → 模擬寄件匣看到補件通知 → 登出後以學號 999900001 登入補件 → 再登入{{ who }}帳號執行。</li>
+    <li><b>教授要求修改</b>：走到附件4 寄出 → 在模擬寄件匣模擬教授回「可以，但口試日期請修改為 2026-11-15」→ 執行 → 「來信處理」頁核准或退回修正草稿 → 再執行，系統寄出新版確認信。</li>
+    <li><b>委員未回填</b>：放行後執行 →「委員個資」頁取得委員專屬連結 → 開啟連結按「寄送驗證碼」→ 驗證碼在模擬寄件匣 → 回填。</li>
+    <li><b>AI 協助判讀</b>：推進一天 → 執行本日流程 → 工作總覽「AI 今日動態」與「AI 建議」頁看到兩筆建議：校外委員寫成簡稱的服務單位對應到距離表、「客座教授」的職稱判讀 → 採用服務單位對應後，案件的交通費才依距離表算出（採用前維持查無距離）。</li>
+</ol>
+{% else %}
+<p>教授要求修改：請扮演指導教授的測試信箱回覆「可以，但日期請修改」，到文件中心覆核並由案件頁修正，再寄新版確認。委員未回填：先展示缺件與預覽，再由扮演校外委員的測試信箱驗證並回填。</p>
+{% endif %}</details></div>
+{% if not judge_mode %}
+<div class="panel"><h2>即時服務準備</h2>
+<p>目前模型：<b>{{ model_label }}</b></p>
+<table><thead><tr><th>項目</th><th>狀態</th></tr></thead><tbody>{% for key,ok in ready.items() %}<tr><td>{{ ready_labels.get(key, key) }}</td><td>{{ '已設定' if ok else '尚未設定' }}</td></tr>{% endfor %}</tbody></table><p class="footnote">秘密設定只存在本機，不在此頁顯示內容。{% if model_offline %}目前使用離線備援（規則替身）：信箱 agent 與 AI 建議會實際跑出結果與軌跡，但不是真實模型的判讀。{% elif not ready.get('OPENAI_API_KEY') %}尚未設定模型金鑰：回信保留供人工處理。{% endif %}</p>
+<table><thead><tr><th>角色</th><th>測試信箱</th></tr></thead><tbody>{% for role,email in mailboxes.items() %}<tr><td>{{ {'student':'學生／業務','advisor':'教授','committee':'委員'}[role] }}</td><td>{{ email }}</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
+{% endblock %}

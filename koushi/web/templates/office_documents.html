@@ -1,0 +1,208 @@
+{% extends "office_base.html" %}
+{% block title %}文件中心{% endblock %}
+{% block breadcrumb %}文件中心{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>文件中心</h1>
+        <p><b>這頁要做的事：</b>產生／下載附件4、附件6。</p>
+        <details class="page-more explain"><summary>更多說明</summary><p>追蹤補件、附件4 寄送與附件6回收進度，並產生／下載附件4、附件6與預覽版。</p></details>
+    </div>
+</div>
+
+{% if tracking %}
+<div class="panel">
+    <h2>追蹤現況</h2>
+    {% set t_def = tracking.deficiency.overdue|selectattr('owner', 'equalto', 'student')|list|length %}
+    {% set t_fix = tracking.collection.needs_correction|length %}
+    {% set t_late = tracking.collection.overdue|length %}
+    <ul class="tracking-alerts">
+        {% if t_def %}<li class="overdue-text">學生補件逾期　<b>{{ t_def }}</b> 位</li>{% endif %}
+        {% if t_fix %}<li class="overdue-text">附件6 需重簽　<b>{{ t_fix }}</b> 份</li>{% endif %}
+        {% if t_late %}<li class="overdue-text">附件6 回收逾期　<b>{{ t_late }}</b> 份</li>{% endif %}
+        {% if not (t_def or t_fix or t_late) %}<li>沒有逾期或待補正。</li>{% endif %}
+    </ul>
+
+
+    <h3 id="tracking-records" style="margin:20px 0 8px;">附件4 寄送紀錄</h3>
+    {% for term, doc in (att4_documents or {}).items()|sort %}
+    <p class="footnote keep" style="margin:0 0 8px;">{{ term|term_label }}附件4：最近產出 {{ doc.generated_at[:16]|replace('T', ' ') }}，收錄 {{ doc.case_keys|length }} 案（第 {{ doc.version }} 版）</p>
+    {% endfor %}
+    {% set shared = 'style="padding:5px 7px;border:1px solid var(--line);border-radius:2px;font:inherit;"' %}
+    <div class="table-scroll">
+        <table>
+            <thead><tr><th>指導教授</th><th>學期／口試日期</th><th>學生</th><th>寄出</th></tr></thead>
+            <tbody>
+                {% for req in tracking.confirmation.requests %}
+                {% set mail = advisor_mail.get(ref(req)) %}
+                <tr>
+                    <td>{{ req.advisor or '（未填）' }}</td>
+                    <td>{{ req.term|term_label }}／{{ req.date_text or '未定' }}</td>
+                    <td>{{ req.student_names|join('、') }}</td>
+                    <td>{% if mail %}{{ mail.sent_date }} 寄至 {{ mail.to }}（第 {{ mail.version }} 版）{% elif req.sent_date %}{{ req.sent_date }} 已寄出{% else %}尚未寄出{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">目前沒有附件4 寄送紀錄。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <h3 style="margin:24px 0 8px;">附件6 回收登錄</h3>
+    <div class="table-scroll">
+        <table>
+            <thead><tr><th>口試場次（指導教授）</th><th>學期／日期</th><th>學生</th><th>狀態</th><th>登錄</th></tr></thead>
+            <tbody>
+                {% for item in tracking.collection.items %}
+                <tr>
+                    <td>{{ item.advisor or '（未填）' }}</td>
+                    <td>{{ item.term|term_label }}／{{ item.date_text or '未定' }}</td>
+                    <td>{{ item.student_names|join('、') }}</td>
+                    <td>{{ status_labels.get(item.status, item.status) }}{% if item.correction_note %}<small>{{ item.correction_note }}</small>{% endif %}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('record_collection_route') }}" style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="token" value="{{ token(item.request_key) }}"><input type="hidden" name="expected_version" value="{{ item.content_version }}">
+                            <input type="text" name="handler" required placeholder="處理人" value="{{ handler }}" size="6" {{ shared|safe }}>
+                            <input type="text" name="note" placeholder="補正原因" size="10" {{ shared|safe }}>
+                            {% if not item.sent_date %}<button type="submit" name="action" value="sent">已交付</button>{% endif %}
+                            <button type="submit" name="action" value="collected" class="primary">已收回合格</button>
+                            <button type="submit" name="action" value="needs_correction">需補正</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">目前沒有附件6 回收項目。</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if internal_todos %}
+    <h3 style="margin-bottom:12px;">系辦內部待辦（責任在系辦，不寄信給學生）</h3>
+    <div class="table-scroll">
+        <table>
+            <thead><tr><th>案件</th><th>問題</th><th>說明</th></tr></thead>
+            <tbody>
+                {% for item in internal_todos %}
+                <tr><td title="{{ item.case_key }}">{{ item.case_key|case_label }}</td><td title="{{ item.issue_code }}">{{ item.issue_code|issue_label }}</td><td>{{ item.description }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if student_overdue %}
+    <h3 style="margin:20px 0 12px;" class="overdue-text">學生補件已逾期（系統不再自動催件，需人工處理）</h3>
+    <div class="table-scroll">
+        <table>
+            <thead><tr><th>案件</th><th>學生</th><th>問題</th><th>截止日</th></tr></thead>
+            <tbody>
+                {% for item in student_overdue %}
+                <tr>
+                    <td title="{{ item.case_key }}">{{ item.case_key|case_label }}</td>
+                    <td>{{ item.student_name }}</td>
+                    <td title="{{ item.issue_code }}">{{ item.issue_code|issue_label }}</td>
+                    <td>{{ item.deadline.computed_date if item.deadline else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="panel"><h2>附件6 預覽</h2><p>所有個資留白，醒目標示「資料未齊」，不得交付或核撥；預覽不會讓案件通過審核。</p><form method="post" action="{{ url_for('generate_documents') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button name="phase" value="preview" {{ 'disabled' if not master_exists else '' }}>產生資料未齊預覽版</button></form>{% set preview = doc_status.get('preview') %}{% if preview and preview.status == 'built' %}{% for fname in preview.attachment6_files %}<p><a href="{{ url_for('download_document', phase='preview', filename=fname) }}">下載預覽版（{{ loop.index }}）</a></p>{% endfor %}{% endif %}</div>
+<div class="section-heading"><h2>附件產出</h2><span>{{ '案件資料已建立' if master_exists else '尚未建立案件資料' }}</span></div>
+<div class="documents-list">
+    <article class="document-row">
+        <div>
+            <h2>
+                附件4　學位口試一覽表
+                <button type="button" class="info-toggle" data-info-toggle="info-doc-pre" aria-expanded="false" aria-label="附件4說明">i</button>
+            </h2>
+            <details class="tiny-more explain"><summary>說明</summary><p>口試前產出附件4（學位口試一覽）與<b>交付版附件6</b>，只納入專員已放行的案件（每日流程寄給教授的附件4 則是學生資料齊全就寄，不等放行）。交付版附件6 的委員身分證、金融機構、帳號、戶籍地址四欄一律留白，交給學生帶去口試，由委員現場自己填，口試後學生交回系辦。需要本機安裝 LibreOffice 轉檔。</p></details>
+            <div id="info-doc-pre" class="info-pop" hidden role="note">
+                <p>前提：主檔已建立，且案件已在工作總覽的人工關卡按「已處理」放行；尚未放行的案件不會出現在這次產出，會列在待處理項目中。每次按下都會用<b>目前最新的主檔</b>重新產生，舊的下載連結會被取代。</p>
+                <p>如果按下後顯示「產檔失敗」，最常見原因是<b>本機沒有安裝 LibreOffice</b>（官方附件4 是舊式 .doc，需要先轉成 .docx）——這種情況要請開發者確認伺服器環境，不是資料本身的問題；其他錯誤訊息會直接顯示原因。</p>
+            </div>
+            {% set pre = doc_status.get('pre-exam') %}
+            {% if pre and pre.get('last_attempt') %}<p class="error">最近嘗試失敗：{{ pre.last_attempt.error }}；保留前次產出。</p>{% endif %}
+            {% if pre and pre.get('issues') %}<details><summary>本次排除與待處理清單（{{ pre.issues|length }}）</summary><table><thead><tr><th>案件</th><th>問題</th><th>原因</th></tr></thead><tbody>{% for issue in pre.issues %}<tr><td title="{{ issue.get('案件鍵', '') }}">{{ issue.get('案件鍵', '')|case_label }}</td><td title="{{ issue.get('問題代碼', '') }}">{{ issue.get('問題代碼', '')|issue_label }}</td><td>{{ issue.get('說明', '') }}</td></tr>{% endfor %}</tbody></table></details>{% endif %}
+            {% if pre and pre.get('included_attachment6') %}<p>本次附件6納入案件：{{ pre.included_attachment6|join('、') }}</p>{% endif %}
+            {% if pre %}
+                {% if pre.status == 'built' %}
+                <small class="doc-status-note">最近一次（{{ pre.at }}）成功，{{ pre.issue_count }} 項待處理</small>
+                {% elif pre.status == 'empty' %}
+                <small class="doc-status-note">最近一次（{{ pre.at }}）已產生附件4{% if pre.get('attachment4_files') %}（可在右側下載）{% endif %}；本次沒有符合資格的附件6（交付版），原因見上方「本次排除與待處理清單」。</small>
+                {% else %}
+                <small class="doc-status-note error">最近一次（{{ pre.at }}）失敗：{{ pre.error }}</small>
+                {% endif %}
+            {% else %}
+            <small class="doc-status-note">尚未產出</small>
+            {% endif %}
+        </div>
+        <div class="actions-inline">
+            <form method="post" action="{{ url_for('generate_documents') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="phase" value="pre-exam">
+                <button type="submit" {{ 'disabled' if not master_exists else '' }}>產生附件4</button>
+            </form>
+            {% if pre and pre.status in ('built', 'empty') and (pre.get('attachment4_files') or pre.get('attachment6_files')) %}
+            <div class="downloads">
+                {% for fname in pre.get('attachment4_files', []) %}
+                <a href="{{ url_for('download_document', phase='pre-exam', filename=fname) }}">下載附件4</a>
+                {% endfor %}
+                {% for fname in pre.get('attachment6_files', []) %}
+                <a href="{{ url_for('download_document', phase='pre-exam', filename=fname) }}">交付版附件6（{{ loop.index }}，個資留白）</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </article>
+
+    <article class="document-row">
+        <div>
+            <h2>
+                附件6　口試費清冊
+                <button type="button" class="info-toggle" data-info-toggle="info-doc-post" aria-expanded="false" aria-label="附件6說明">i</button>
+            </h2>
+            <details class="tiny-more explain"><summary>說明</summary><p>口試後產出<b>完整版附件6</b>（含委員個資），只供系辦核撥使用，<b>不寄出、不交給學生</b>。委員在交付版上手寫的個資，請先到「委員個資」頁登錄，登錄完才能把該份附件6 標為已收回（合格）。未放行的案件會被排除，列在待處理項目中；教授有沒有回覆附件4 不影響。附件5 已取消。</p></details>
+            <div id="info-doc-post" class="info-pop" hidden role="note">
+                <p>前提：主檔已建立。教授有沒有回覆附件4 都不影響這次產出（2026-10-12 起取消教授確認）。</p>
+                <p>產檔失敗的處理方式跟附件4一樣：畫面會顯示錯誤原因，主檔不會受影響，記下錯誤訊息請開發者協助排查即可。</p>
+            </div>
+            {% set post = doc_status.get('post-exam') %}
+            {% if post and post.get('last_attempt') %}<p class="error">最近嘗試失敗：{{ post.last_attempt.error }}；保留前次產出。</p>{% endif %}
+            {% if post and post.get('issues') %}<details><summary>本次排除與待處理清單（{{ post.issues|length }}）</summary><table><thead><tr><th>案件</th><th>問題</th><th>原因</th></tr></thead><tbody>{% for issue in post.issues %}<tr><td title="{{ issue.get('案件鍵', '') }}">{{ issue.get('案件鍵', '')|case_label }}</td><td title="{{ issue.get('問題代碼', '') }}">{{ issue.get('問題代碼', '')|issue_label }}</td><td>{{ issue.get('說明', '') }}</td></tr>{% endfor %}</tbody></table></details>{% endif %}
+            {% if post and post.get('included_attachment6') %}<p>本次附件6納入案件：{{ post.included_attachment6|join('、') }}</p>{% endif %}
+            {% if post %}
+                {% if post.status == 'built' %}
+                <small class="doc-status-note">最近一次（{{ post.at }}）成功，{{ post.issue_count }} 項待處理</small>
+                {% elif post.status == 'empty' %}
+                <small class="doc-status-note">最近一次（{{ post.at }}）沒有符合資格的附件6，原因見上方「本次排除與待處理清單」。</small>
+                {% else %}
+                <small class="doc-status-note error">最近一次（{{ post.at }}）失敗：{{ post.error }}</small>
+                {% endif %}
+            {% else %}
+            <small class="doc-status-note">尚未產出</small>
+            {% endif %}
+        </div>
+        <div class="actions-inline">
+            <form method="post" action="{{ url_for('generate_documents') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="phase" value="post-exam">
+                <button type="submit" class="primary" {{ 'disabled' if not master_exists else '' }}>產生附件6</button>
+            </form>
+            {% if post and post.status == 'built' %}
+            <div class="downloads">
+                {% for fname in post.attachment6_files %}
+                <a href="{{ url_for('download_document', phase='post-exam', filename=fname) }}">完整版附件6（{{ loop.index }}，僅供核撥）</a>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </article>
+</div>
+<details class="tiny-more explain"><summary>說明</summary><p>正式文件維持學校規定格式；附件 7、8 的報支作業仍由既有撥帳系統辦理。</p></details>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "office_base.html" %}
+{% block title %}AI 建議{% endblock %}
+{% block breadcrumb %}AI 建議{% endblock %}
+{% block extra_head %}
+<style>
+    .ai-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+    .ai-form input,.ai-form select{padding:6px 8px;border:1px solid var(--line);border-radius:2px;font:inherit}
+    .ai-evidence{font-size:12px;color:var(--muted,#555);margin:4px 0 0;padding-left:18px}
+    .ai-trace{font-size:12px;margin-top:6px}
+    .ai-trace li{margin:2px 0}
+    details summary{cursor:pointer;color:var(--primary);font-size:12px}
+    .ai-toggles{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+</style>
+{% endblock %}
+{% macro trace_list(p) %}
+<details class="ai-trace"><summary>執行軌跡（{{ traces.get(p.id, [])|length }} 步，點開查看）</summary><ol>
+{% for t in traces.get(p.id, []) %}<li>{{ t.at|fmt_time }}　<strong>{{ t.step|step_label(t.input_summary) }}</strong>{% if t.model %}　模型：{{ t.model }}{% endif %}{% if t.latency_ms is not none %}　{{ t.latency_ms }} ms{% endif %}{% if t.decision %}　{{ t.decision|decision_label }}{% endif %}{% if t.input_summary %}<br><small>輸入：{{ t.input_summary|codes_to_labels }}</small>{% endif %}{% if t.output is not none %}<br><small>結果：{{ t.output|readable }}</small>{% endif %}</li>
+{% else %}<li>沒有軌跡</li>{% endfor %}</ol>
+<a class="row-action" href="{{ url_for('agent_trace_run', tid=trace_task_id(p.agent, p.run_id, [p.subject_key])) }}">查看完整軌跡</a></details>
+{% endmacro %}
+{% macro suggestion_head(p) %}
+{% if p.error %}<span class="badge missing">模型失敗</span> <small>{{ p.error }}</small>
+{% elif p.suggestion %}<span class="badge review">AI 建議</span>
+{% else %}<span class="badge neutral">無建議</span>{% endif %}
+{% if p.method == 'rule' %}<small>規則比對</small>{% elif p.confidence is not none and p.suggestion %}<small>信心 {{ (p.confidence * 100)|round|int }}%（{{ '離線備援估計' if p.model == offline_model else '模型自評' }}，僅供參考）</small>{% endif %}
+<small>方法：{% if p.method == 'llm' and p.model == offline_model %}離線備援排序（規則替身，非真實模型）{% else %}{{ {'rule': '規則比對', 'llm': '模型排序', 'none': '無'}.get(p.method, p.method) }}{% endif %}</small>
+{% endmacro %}
+{% macro handler_input() %}<input type="text" name="handler" required placeholder="處理人" value="{{ handler }}" autocomplete="off">{% endmacro %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>AI 建議</h1>
+        <p><b>這頁要做的事：</b>看下方每一筆建議，按「採用建議」、「改指定／改判」或「不採用」。你按下之前，不會影響交通費、資格或任何資料。</p>
+        <details class="page-more explain"><summary>更多說明</summary>
+            <p>AI 只提出建議，一律由專員決定。確認後的服務單位對照與職稱級別會保存下來，下次直接查表、不再詢問模型。</p>
+            <p>右邊「請 AI 重新檢查一次」（舊名「依目前主檔產生建議」）是重新請 AI 檢查一次目前的案件資料（主檔）；平常每日流程會自動跑，不必手動按。</p>
+        </details>
+    </div>
+    <form method="POST" action="{{ url_for('run_ai_proposals') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="agent" value="all">
+        <button type="submit">請 AI 重新檢查一次</button>
+    </form>
+</div>
+
+<div class="case-section{{ ' is-empty' if not (pending['affiliation']|length) else '' }}">
+    <div class="section-heading"><h2>AI 建議：{{ agents['affiliation'] }} <span class="total-count">{{ pending['affiliation']|length }}</span></h2></div>
+    <details class="tiny-more explain"><summary>說明：按下「採用建議」或「改指定」會發生什麼</summary><p>查不到距離的服務單位在你確認前維持「查無距離」，不計交通費。採用後交通費會依距離表算出並顯示在提示訊息與案件詳情。</p><p>這個寫法會存進服務單位對照表，系統立即重建主檔，該委員的交通費改依對應單位的距離計算。已產生的附件4／附件6 因主檔改變需要重新產生；案件放行不受影響（放行只在委員名單、職稱或服務單位文字變動時失效）。對照可在下方「已確認的服務單位對照」撤銷。「改指定」須先在下拉選單選一個距離表單位。</p></details>
+    {% for p in pending['affiliation'] %}
+    <section id="proposal-{{ p.id }}" style="border-top:1px solid var(--line);padding:10px 0">
+        <div class="ai-subject">委員服務單位寫成「<strong>{{ p.subject }}</strong>」</div>
+        <div class="ai-main">{% if p.error %}<span class="badge missing">AI 判讀失敗，請你人工判斷</span>{% elif p.suggestion %}AI 建議 → <strong>{{ p.suggestion }}</strong>{% else %}AI 沒有建議，請你人工判斷{% endif %}</div>
+        <form method="POST" action="{{ url_for('decide_ai_proposal', proposal_id=p.id) }}" class="ai-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ handler_input() }}
+            <select name="target" aria-label="改指定距離表單位">
+                <option value="">（改指定其他距離表單位）</option>
+                {% for u in distance_units %}<option value="{{ u }}">{{ u }}</option>{% endfor %}
+            </select>
+            <input type="text" name="note" placeholder="備註（選填）">
+            {% if p.suggestion %}<button type="submit" name="action" value="approve" class="primary" title="寫入服務單位對照並重建主檔；交通費會改依距離表計算">採用建議</button>{% endif %}
+            <button type="submit" name="action" value="override">改指定</button>
+            <button type="submit" name="action" value="reject">不對應（維持查無距離）</button>
+        </form>
+        <details class="tiny-more"><summary>詳細資料（理由、信心、候選、處理紀錄）</summary>
+            <div>{{ suggestion_head(p) }}{% if p.suggestion %}　→ {{ p.suggestion }}{% endif %}</div>
+            {% if p.rationale %}<p>理由：{{ p.rationale }}</p>{% endif %}
+            {% if p.candidates %}<ul class="ai-evidence">{% for c in p.candidates %}<li>距離表候選 {{ c.name }}（規則檢索分數 {{ c.score }}，{{ c.why|replace('字元相似度', '未展開簡稱的字元相似度') }}）</li>{% endfor %}</ul>{% endif %}
+            {{ trace_list(p) }}
+        </details>
+    </section>
+    {% else %}<p>沒有待確認的服務單位對應。</p>{% endfor %}
+    <details>
+        <summary>已確認的服務單位對照（第 {{ aliases.version }} 版，{{ aliases.aliases|length }} 筆）</summary>
+        <div class="table-scroll"><table>
+            <thead><tr><th scope="col">寫法</th><th scope="col">距離表單位</th><th scope="col">處理人／時間</th><th scope="col">來源</th><th scope="col"></th></tr></thead>
+            <tbody>{% for key, a in aliases.aliases.items() %}
+            <tr><td>{{ a.unit }}</td><td>{{ a.target }}</td><td>{{ a.actor }}　{{ a.at }}</td><td>{{ {'ai_approved': '採用 AI 建議', 'staff_override': '專員改指定'}.get(a.source, a.source) }}</td>
+                <td><form method="POST" action="{{ url_for('remove_ai_alias') }}" class="ai-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="key" value="{{ key }}">
+                    {{ handler_input() }}<input type="text" name="reason" placeholder="撤銷原因"><button type="submit" {{ ('disabled title="' ~ who ~ '模式不可用"') if is_judge else '' }}>撤銷</button></form></td></tr>
+            {% endfor %}</tbody>
+        </table></div>
+    </details>
+</div>
+
+<div class="case-section{{ ' is-empty' if not (pending['correction']|length - resolved_corrections|length) else '' }}">
+    <div class="section-heading"><h2>AI 建議：{{ agents['correction'] }} <span class="total-count">{{ pending['correction']|length - resolved_corrections|length }}</span></h2></div>
+    <details class="tiny-more explain"><summary>說明</summary><p>套用時寫入專員修正層（記錄處理人與原因），下一次建主檔起生效；不會自動套用。已在案件放行時由專員確認過的例外不再產生建議。</p></details>
+    {% for p in pending['correction'] if p.id not in resolved_corrections %}
+    <section id="proposal-{{ p.id }}" style="border-top:1px solid var(--line);padding:10px 0">
+        <div><strong title="{{ p.case_key }}">{{ case_names.get(p.case_key) or (p.case_key|case_label) }}</strong>　<span title="{{ p.issue['問題代碼'] }}">{{ p.issue['問題代碼']|issue_label }}</span>：{{ p.issue['說明']|friendly_issue_text }}</div>
+        <div class="ai-main">{% if p.error %}<span class="badge missing">AI 判讀失敗，請你人工判斷</span>{% elif p.suggestion %}AI 建議 {{ p.suggestion.label }}：「{{ p.suggestion.old }}」→「<strong>{{ p.suggestion.new }}</strong>」{% else %}AI 沒有建議，請你人工判斷{% endif %}</div>
+        <form method="POST" action="{{ url_for('decide_ai_proposal', proposal_id=p.id) }}" class="ai-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ handler_input() }}
+            {% if p.suggestion %}<input type="text" name="value" placeholder="改用其他值（選填）">{% endif %}
+            <input type="text" name="note" placeholder="原因（預設帶入 AI 理由）">
+            {% if p.suggestion %}<button type="submit" name="action" value="approve" class="primary">套用建議</button>
+            <button type="submit" name="action" value="override">改值後套用</button>{% endif %}
+            <button type="submit" name="action" value="reject">不採用</button>
+        </form>
+        <details class="tiny-more"><summary>詳細資料（理由、信心、處理紀錄）</summary>
+            <div>{{ suggestion_head(p) }}</div>
+            {% if p.rationale %}<p>理由：{{ p.rationale }}</p>{% endif %}
+            {{ trace_list(p) }}
+        </details>
+    </section>
+    {% else %}<p>沒有待處理的修正建議。</p>{% endfor %}
+    {% if resolved_corrections %}<p class="footnote" style="margin:0 16px 8px;">另有 {{ resolved_corrections|length }} 筆建議對應的例外已在案件放行時由專員確認，不需再決定（仍保留在 Agent 軌跡）。</p>{% endif %}
+</div>
+
+<div class="case-section{{ ' is-empty' if not (pending['title']|length) else '' }}">
+    <div class="section-heading"><h2>AI 建議：{{ agents['title'] }} <span class="total-count">{{ pending['title']|length }}</span></h2></div>
+    <p class="footnote" style="margin:0 16px 8px;">僅供參考，不會改變任何案件的審核結果。</p>
+    <details class="tiny-more explain"><summary>說明</summary><p>委員資格由專員在人工關卡判斷，確認級別不會改變任何案件的例外或放行狀態。</p></details>
+    {% for p in pending['title'] %}
+    <section id="proposal-{{ p.id }}" style="border-top:1px solid var(--line);padding:10px 0">
+        <div class="ai-subject">委員職稱「<strong>{{ p.subject }}</strong>」（{{ p.count }} 位委員）</div>
+        <div class="ai-main">{% if p.error %}<span class="badge missing">AI 判讀失敗，請你人工判斷</span>{% elif p.suggestion %}AI 建議 → <strong>{{ p.suggestion }}</strong>{% else %}AI 沒有建議，請你人工判斷{% endif %}</div>
+        <form method="POST" action="{{ url_for('decide_ai_proposal', proposal_id=p.id) }}" class="ai-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ handler_input() }}
+            <select name="level" aria-label="改判級別"><option value="">（改判級別）</option>{% for l in levels %}<option value="{{ l }}">{{ l }}</option>{% endfor %}</select>
+            <input type="text" name="note" placeholder="備註（選填）">
+            {% if p.suggestion %}<button type="submit" name="action" value="approve" class="primary">確認級別</button>{% endif %}
+            <button type="submit" name="action" value="override">改判</button>
+            <button type="submit" name="action" value="reject">不採用</button>
+        </form>
+        <details class="tiny-more"><summary>詳細資料（規則、理由、信心、處理紀錄）</summary>
+            <p>規則判斷：{{ p.rule_reason }}</p>
+            <div>{{ suggestion_head(p) }}{% if p.suggestion %}　→ {{ p.suggestion }}{% endif %}</div>
+            {% if p.rationale %}<p>理由：{{ p.rationale }}</p>{% endif %}
+            {{ trace_list(p) }}
+        </details>
+    </section>
+    {% else %}<p>沒有待確認的職稱。</p>{% endfor %}
+    <details>
+        <summary>已確認的職稱級別（{{ title_levels.titles|length }} 筆）</summary>
+        <ul>{% for key, t in title_levels.titles.items() %}<li>{{ t.title }} → {{ t.level }}（{{ t.actor }}　{{ t.at }}）</li>{% endfor %}</ul>
+    </details>
+</div>
+
+<details class="collapsed-section" id="ai-decided">
+    <summary>最近的專員決定<small>（{{ decided|length }} 筆，點開看）</small></summary>
+    {% if decided %}
+    <div class="table-scroll"><table>
+        <thead><tr><th scope="col">類型</th><th scope="col">主題</th><th scope="col">AI 建議</th><th scope="col">決定</th><th scope="col">處理人／時間</th></tr></thead>
+        <tbody>{% for p in decided %}
+        <tr><td>{{ agents[p.agent] }}</td><td>{% if p.agent == 'correction' and p.issue %}{{ p.issue['問題代碼']|issue_label }}{% if p.issue['欄位'] %}（{{ p.issue['欄位'] }}）{% endif %}{% else %}{{ p.subject }}{% endif %}</td>
+            <td>{% if p.suggestion is mapping %}{{ p.suggestion.label }} → {{ p.suggestion.new }}{% else %}{{ p.suggestion or '（無）' }}{% endif %}</td>
+            <td>{{ status_labels[p.status] }}{% if p.decision %}<small>：{{ decision_text(p) }}</small>{% endif %}{% if p.note %}<small>（{{ p.note }}）</small>{% endif %}</td>
+            <td>{{ p.decided_by }}　{{ p.decided_at|fmt_time }}{{ trace_list(p) }}</td></tr>
+        {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p style="padding:0 16px 12px;">尚無決定紀錄。</p>{% endif %}
+</details>
+<details class="collapsed-section" id="ai-switches">
+    <summary>開關</summary>
+    <div style="padding:0 16px 12px;">
+    <form method="POST" action="{{ url_for('save_ai_settings') }}" class="ai-toggles">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for key, label in agents.items() %}
+        <label><input type="checkbox" name="{{ key }}" value="1" {{ 'checked' if settings[key] else '' }}> {{ label }}</label>
+        {% endfor %}
+        {{ handler_input() }}
+        <button type="submit" {{ ('disabled title="' ~ who ~ '模式不可用"') if is_judge else '' }}>儲存開關</button>{% if is_judge %}<small>{{ who }}模式不可用</small>{% endif %}
+    </form>
+    <p class="footnote">關閉後該 agent 不再產生建議。三個 agent 都沒有自動套用選項。</p>
+</div>
+</details>
+{% endblock %}

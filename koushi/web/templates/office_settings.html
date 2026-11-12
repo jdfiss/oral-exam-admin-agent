@@ -1,0 +1,150 @@
+{% extends "office_base.html" %}
+{% block title %}期限設定{% endblock %}
+{% block breadcrumb %}期限設定{% endblock %}
+{% block extra_head %}
+<style>
+    .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px 24px}
+    .settings-grid label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+    .settings-grid input,.settings-grid select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:2px;font:inherit;background:white}
+    .settings-grid .hint{font-size:12px;color:var(--muted);margin-top:4px}
+    .computed{display:flex;gap:28px;flex-wrap:wrap;font-size:13px;margin-bottom:6px}
+    .computed b{display:block;font-size:17px;margin-top:2px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>期限與催件設定</h1>
+        <p><b>這頁要做的事：</b>要停掉所有 AI，在最上面「AI 總開關」填處理人與原因，按「立即停止所有 AI」。下方期限設定改完按最底下「儲存設定」。</p>
+        <details class="page-more explain"><summary>更多說明</summary><p>全系統一套。修改後下一次自動化執行即套用，所有變更都記錄在稽核日誌。</p></details>
+    </div>
+</div>
+
+{% if is_judge %}<div class="flash info" role="status">{{ who }}帳號僅可檢視期限與自動化設定，無法儲存；伺服器端也會拒絕修改。</div>{% endif %}
+
+{% if pending_switch %}
+<div class="panel" style="border-color:#e0b4ac;">
+    <h2>確認切換本期學期</h2>
+    <p style="margin-top:10px;">本期學期將從 <b>{{ pending_switch.old|term_label }}</b> 切換為 <b>{{ (pending_switch.new|term_label) or '（空白）' }}</b>。
+        {{ pending_switch.old|term_label }}還有 <b>{{ pending_switch.open_cases|length }}</b> 件沒結案（有未解決缺件或附件6 未收回）。</p>
+    {% if pending_switch.open_cases %}<p class="footnote keep">{% for k in pending_switch.open_cases %}{{ k|case_label }}{% if not loop.last %}、{% endif %}{% endfor %}</p>{% endif %}
+    <p class="footnote">切換後舊學期封存：只能查看，系統不再對舊學期催繳或寄信，剩下的請線下處理。附件2 第一次上傳日與補件截止日手動覆寫會清空，新學期請重新上傳附件2。</p>
+    <form method="post" action="{{ url_for('office_settings_page') }}" style="margin-top:12px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for name, value in pending_switch.form %}<input type="hidden" name="{{ name }}" value="{{ value }}">
+        {% endfor %}<input type="hidden" name="confirm_term_switch" value="1">
+    <div class="actions"><button type="submit" class="primary">確認切換並儲存</button>
+            <a href="{{ url_for('office_settings_page') }}">取消</a></div>
+    </form>
+</div>
+{% endif %}
+
+<div class="panel">
+    <h2>目前狀態</h2>
+    <div class="computed" style="margin-top:14px;">
+        <div>目前時段<b>{{ phase_label }}</b></div>
+        <div>填寫截止日<b>{{ settings.fill_deadline or '（未設定）' }}</b></div>
+        <div>附件2 第一次上傳<b>{{ settings.att2_first_uploaded or '（尚未上傳）' }}</b></div>
+        <div>正式檢核開始日<b>{{ settings.check_start or '（待附件2）' }}</b></div>
+        <div>補件截止日<b>{{ settings.deficiency_deadline or '（待附件2）' }}{% if settings.deficiency_deadline_override %}（手動覆寫）{% endif %}</b></div>
+    </div>
+    <details class="tiny-more explain"><summary>說明</summary><p>填寫截止日當天（含）以前學生可自由修改，系統不寄信也不催。正式檢核開始日＝填寫截止日隔天與附件2 第一次上傳隔天中較晚的一天，當天起系統寄補件信，只有收到補件通知的案件能在補件截止日（含）前修改；之後一律鎖定。附件2 重傳不會重算補件截止日。</p></details>
+</div>
+
+<form method="post" action="{{ url_for('office_settings_page') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="panel">
+        <h2>學生</h2>
+        <div class="settings-grid" style="margin-top:16px;">
+            <div>
+                <label for="fill_deadline">填寫截止日</label>
+                <input type="date" id="fill_deadline" name="fill_deadline" value="{{ settings.fill_deadline or '' }}">
+                <details class="tiny-more explain"><summary>說明</summary><p>本期學期與填寫截止日都設好，學生端才開放填寫。附件2 可在截止日前提早上傳。</p></details>
+            </div>
+            <div>
+                <label for="deficiency_days">補件期限天數</label>
+                <input type="number" min="0" id="deficiency_days" name="deficiency_days" value="{{ settings.deficiency_days }}">
+                <details class="tiny-more explain"><summary>說明</summary><p>補件截止日＝正式檢核開始日＋此天數。</p></details>
+            </div>
+            <div>
+                <label for="deficiency_deadline_override">補件截止日手動覆寫</label>
+                <input type="date" id="deficiency_deadline_override" name="deficiency_deadline_override" value="{{ settings.deficiency_deadline_override or '' }}">
+                <details class="tiny-more explain"><summary>說明</summary><p>留空則依公式計算（目前公式結果：{{ settings.computed_deficiency_deadline or '待附件2' }}）。補件信晚寄時系統不會自動延後，需要時在此延後。</p></details>
+            </div>
+            <div>
+                <label for="deficiency_reminder_lead_days">補件截止前幾天開始催</label>
+                <input type="number" min="0" id="deficiency_reminder_lead_days" name="deficiency_reminder_lead_days" value="{{ settings.deficiency_reminder_lead_days }}">
+                <details class="tiny-more explain"><summary>說明</summary><p>進入此天數後，每天最多催一次尚未補件的學生。</p></details>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>本期與通知</h2>
+        <div class="settings-grid" style="margin-top:16px;">
+            <div>
+                <label for="current_term">本期學期</label>
+                <input type="text" id="current_term" name="current_term" value="{{ settings.current_term }}" placeholder="例：1151（115學年度第1學期）">{% if settings.current_term %}<small>{{ settings.current_term|term_label }}</small>{% endif %}
+                <details class="tiny-more explain"><summary>說明</summary><p>學生端固定使用此學期，學生不能自己填學期。切換到新學期時會先列出舊學期未結案件，確認後才切換。</p></details>
+            </div>
+            <div>
+                <label for="student_email_template">學生信箱後備格式</label>
+                <input type="text" id="student_email_template" name="student_email_template" value="{{ settings.student_email_template }}" placeholder="{學號}@cc.example.edu">
+                <details class="tiny-more explain"><summary>說明</summary><p>學生沒有留 Email（例如從未填寫）時，補件信寄到這個格式的學校信箱。留空則不使用。</p></details>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>共用</h2>
+        <div class="settings-grid" style="margin-top:16px;">
+            <div>
+                <label for="send_hour">每日發送時刻（0–23 時）</label>
+                <input type="number" min="0" max="23" id="send_hour" name="send_hour" value="{{ settings.send_hour }}">
+                <details class="tiny-more explain"><summary>說明</summary><p>每日自動化在此時刻之前執行只預覽、不寄信。</p></details>
+            </div>
+            <div>
+                <label for="holidays">國定假日（工作日計算時排除）</label>
+                <textarea id="holidays" name="holidays" rows="3" placeholder="每行一個日期，例：2026-10-10" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:2px;font:inherit;">{% for d in settings.holidays %}{{ d }}
+{% endfor %}</textarea>
+            </div>
+            <div>
+                <label for="business_days">日數計算方式</label>
+                <select id="business_days" name="business_days">
+                    <option value="1" {{ 'selected' if settings.business_days else '' }}>工作日（排除週末）</option>
+                    <option value="0" {{ '' if settings.business_days else 'selected' }}>曆日</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>附件4（寄給指導教授參考）</h2>
+        <div class="settings-grid" style="margin-top:16px;">
+            <div>
+                <label for="confirmation_days">預留教授核對天數</label>
+                <input type="number" min="0" id="confirmation_days" name="confirmation_days" value="{{ settings.confirmation_days }}">
+            </div>
+            {# 2026-10-12 起教授不用回信、不催：保留欄位值但不顯示 #}
+            <input type="hidden" name="confirmation_reminder_interval_days" value="{{ settings.confirmation_reminder_interval_days }}">
+        </div>
+        <div class="settings-grid" style="margin-top:12px;"><div><label for="collection_days">附件6回收期限天數</label><input type="number" min="0" id="collection_days" name="collection_days" value="{{ settings.collection_days }}"><details class="tiny-more explain"><summary>說明</summary><p>附件4 只寄給教授參考，教授不用回信、系統不催；「預留教授核對天數」只用來提醒口試日期是否太早。工作日計算會排除假日。附件6 由學生帶去口試、學生交回；回收期限從交付日與口試日較晚者起算，逾期寄提醒給該場口試委員。</p></details></div></div>
+    </div>
+
+    <div class="panel">
+        <h2>委員（個資索取）</h2>
+        <div class="settings-grid" style="margin-top:16px;">
+            <div>
+                <label for="committee_exception_lead_days">口試前幾天仍未交個資列例外</label>
+                <input type="number" min="0" id="committee_exception_lead_days" name="committee_exception_lead_days" value="{{ settings.committee_exception_lead_days }}">
+                <details class="tiny-more explain"><summary>說明</summary><p>系統不催委員；到這個天數仍未交個資就列例外給專員，口試當天可用附件6 現場補。</p></details>
+            </div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button type="submit" class="primary" {{ ('disabled title="' ~ who ~ '模式不可用"') if is_judge else '' }}>儲存設定</button>{% if is_judge %} <small>{{ who }}模式不可用：期限與系統設定只能檢視（AI 總開關可操作）。</small>{% endif %}
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}系辦工作台{% endblock %} — 口試事務</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='office.css') }}">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">跳到主要內容</a>
+{% macro nav_link(page, endpoint, label) -%}
+<a class="nav {{ 'active' if active_page == page else '' }}" href="{{ url_for(endpoint) }}" {{ 'aria-current="page"' if active_page == page else '' }}>{{ label }}</a>
+{%- endmacro %}
+<aside class="sidebar">
+    <div class="brand">口試事務管理<small>{{ univ_name }} {{ dept_name }}</small></div>
+    <nav aria-label="主要導覽">
+        <div class="nav-group">每天會用</div>
+        {{ nav_link('overview', 'office_overview', '工作總覽') }}
+        {{ nav_link('mailbox', 'office_mailbox', '來信處理') }}
+        {{ nav_link('ai', 'office_ai_proposals', 'AI 建議') }}
+        {% if assistant_nav %}{{ nav_link('assistant', 'office_assistant', '問答助理') }}{% endif %}
+        {{ nav_link('documents', 'office_documents', '文件中心') }}
+        {{ nav_link('committees', 'office_committees', '委員個資') }}
+        {{ nav_link('settings', 'office_settings_page', '期限設定') }}
+        {{ nav_link('flow', 'office_flow', '流程圖') }}
+        {{ nav_link('ai_settings', 'office_ai_settings', 'AI 開關') }}
+        {% if demo_info or judge_mode %}
+        <div class="nav-group">模擬工具（假資料）</div>
+        {% if demo_info %}{{ nav_link('demo', 'office_demo', '模擬時間與每日流程') }}{% endif %}
+        {% if judge_mode %}{{ nav_link('judge_outbox', 'judge_outbox', '模擬寄件匣') }}{% endif %}
+        {% endif %}
+        <details class="nav-more"{% if active_page in ('import', 'communications', 'agent_trace', 'agent_metrics', 'archives') %} open{% endif %}>
+            <summary>更多（較少用）</summary>
+            {{ nav_link('import', 'office_import', '匯入資料') }}
+            {{ nav_link('communications', 'office_communications', '通訊記錄') }}
+            {{ nav_link('agent_trace', 'office_agent_trace', 'AI 處理紀錄') }}
+            {{ nav_link('agent_metrics', 'office_agent_metrics', 'AI 成效統計') }}
+            {{ nav_link('archives', 'office_archives', '學期封存') }}
+        </details>
+    </nav>
+    <div class="profile">{{ (who ~ '（權限受控）') if is_judge else '系辦人員' }}　<a href="{{ url_for('logout') }}">登出</a></div>
+</aside>
+<div class="workspace">
+    <header class="topbar"><span>{{ dept_name }} <span class="slash">/</span> <span>{% block breadcrumb %}{% endblock %}</span></span></header>
+    <main id="main" tabindex="-1">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+        {% if judge_mode or demo_info %}
+        <div class="flash info sim-banner" role="status">
+            <b>{{ judge_banner if judge_mode else '模擬展示：全部案件為假資料' }}</b>{% if demo_info %} · 模擬日期 {{ demo_now.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+            {% if is_judge %}<br>{{ who }}帳號可檢視全部頁面、執行人工關卡操作、下載本輪產生的附件4／附件6（示範假資料）與 agent 軌跡 JSON；不可修改系統設定、上傳來源檔、匯出總表或下載封存；所有操作記錄為「{{ who }}」{% endif %}
+            <details class="inline-more"><summary>技術資訊</summary>
+                {% if judge_mode %}模型：{{ judge_model }}{% endif %}{% if demo_info %}{% if judge_mode %} · {% endif %}情境：{{ demo_info.label }} · 本輪代碼 {{ demo_info.run_id }} · 全部案件為假資料{% endif %}
+            </details>
+        </div>
+        {% endif %}
+        {% if ai_stop_reason %}<div class="flash error" role="alert"><b>AI 總開關已關閉（緊急停止）</b>：{{ ai_stop_reason }}。所有 AI 判讀與 agent 自動動作已停止，來信與建議全部改由專員人工處理；規則流程（建檔、檢核、通知、催件）照常。</div>{% endif %}
+        {% if master_stale_reason %}<div class="flash error" role="status">目前顯示的是上次的案件資料（主檔）：{{ master_stale_reason }}。正式產檔與下載暫停。</div>{% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</div>
+{% block dialogs %}{% endblock %}
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="{{ url_for('static', filename='office.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

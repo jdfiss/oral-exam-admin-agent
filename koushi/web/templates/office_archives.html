@@ -1,0 +1,28 @@
+{% extends 'office_base.html' %}
+{% block title %}學期封存{% endblock %}
+{% block breadcrumb %}學期封存{% endblock %}
+{% block content %}
+<div class="page-heading"><div>
+<h1>學期封存</h1>
+<p>切換本期學期時，系統把舊學期的資料整份凍結保存，供系辦查閱及下載。異動須在目前學期另留處理紀錄，封存資料不接受修改或寄送。</p>
+</div></div>
+{% if archive %}
+<div class="case-section">
+<div class="section-heading"><h2>{{ term|term_label }}</h2></div>
+<p style="margin:0 23px 12px;">封存時間：{{ archive.at|fmt_time }}　·　共 {{ archive.files|length }} 個檔案{% if not is_judge %}　·　<a class="row-action" href="{{ url_for('archived_term', term=term) }}">下載校驗清單</a>{% endif %}</p>
+{% if is_judge %}<p class="footnote" style="margin:0 23px 12px;">{{ who }}模式不可用：封存檔與校驗清單只列出、不提供下載（正式環境的系辦帳號可下載）。</p>{% endif %}
+<div class="table-scroll"><table>
+<thead><tr><th scope="col">類別</th><th scope="col" class="num">檔案數</th><th scope="col">內容</th></tr></thead>
+<tbody>
+{% for group, names in archive_groups %}
+<tr><td>{{ group }}</td><td class="num">{{ names|length }}</td><td><details><summary>展開檔案</summary><ul style="margin:6px 0 0 18px;">{% for filename in names %}<li>{% if is_judge %}<span>{{ filename }}</span>{% else %}<a href="{{ url_for('download_archive_file', term=term, filename=filename) }}">{{ filename }}</a>{% endif %}</li>{% endfor %}</ul></details></td></tr>
+{% endfor %}
+</tbody></table></div>
+</div>
+<p><a class="row-action" href="{{ url_for('office_archives') }}">回到封存學期清單</a></p>
+{% else %}
+<div class="case-section">
+<ul style="margin:0 23px 16px 40px;">{% for term in terms %}<li><a href="{{ url_for('archive_files', term=term) }}">{{ term|term_label }}</a></li>{% else %}<li>尚無封存學期。切換「期限設定」的本期學期時，舊學期會自動封存到這裡。</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% endblock %}

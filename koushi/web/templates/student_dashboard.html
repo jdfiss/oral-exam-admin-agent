@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}我的口試申請{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center;">
+    <h1>我的口試申請</h1>
+    <div>
+        <span style="color:#666; margin-right:12px;">學號：{{ student_id }}</span>
+        <a href="{{ url_for('logout') }}" class="btn btn-secondary">登出</a>
+    </div>
+</div>
+
+{% set current = statuses.get(current_key) if current_key else none %}
+{% if current %}
+<div class="section" style="margin-top:16px;">
+    <p><b>目前階段：</b>{{ current.phase_label }}
+        {% if current.fill_deadline %}　／　填寫截止日：{{ current.fill_deadline }}{% if current.deficiency_deadline %}　／　補件截止日：{{ current.deficiency_deadline }}{% endif %}{% endif %}</p>
+    {% if current.block_reason %}<p style="color:#8a2f22; margin-top:6px;">{{ current.block_reason }}</p>{% endif %}
+    {% if progress %}
+    <table style="margin-top:10px;">
+        <thead><tr><th>整體進度</th><th>目前狀態</th></tr></thead>
+        <tbody>{% for step, text, tone in progress %}
+        <tr><td>{{ step }}</td><td style="color:{{ {'ready':'#1f5e46','missing':'#8a2f22','review':'#3f6195'}.get(tone, '#5B6472') }};">{{ text }}</td></tr>
+        {% endfor %}</tbody>
+    </table>
+    <p style="font-size:0.85rem; color:#5B6472; margin-top:6px;">此表只供查看進度，系辦與委員的步驟不需要你操作。</p>
+    {% endif %}
+</div>
+{% if current.block_reason and student_open %}
+<div class="section">
+    <h2 style="margin-top:0;">申請異動</h2>
+    {% for r in change_requests %}
+    <p style="font-size:0.9rem;">{{ r.at }}：{{ r.reason }}（{{ '系辦處理中' if r.status == 'pending' else '系辦已處理' }}）</p>
+    {% endfor %}
+    <form method="POST" action="{{ url_for('change_request') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="reason" rows="3" required maxlength="1000" placeholder="例如：口試改期到 12/3；委員王老師換了 E-mail" style="width:100%;"></textarea>
+        <button type="submit" class="btn btn-primary">送出申請</button>
+    </form>
+    <p style="font-size:0.9rem; color:#5B6472;">系辦看過後會開放修改，或直接與你聯絡。</p>
+</div>
+{% endif %}
+{% endif %}
+
+{% for key, st in statuses.items() if st.pending %}
+<div class="section" style="border-color:#f0d69b; background:#fffaf0;">
+    <h2 style="margin-top:0;">{{ key.split('-')[0]|term_label }}：必須補正的項目（{{ st.pending|length }}）</h2>
+    <ul style="margin-left:20px;">
+        {% for item in st.pending %}
+        <li>{{ item.field|friendly_issue_text }}：{{ item.description|friendly_issue_text }}</li>
+        {% endfor %}
+    </ul>
+    <p style="margin-top:8px; font-size:0.9rem; color:#5B6472;">
+        請在{% if st.deficiency_deadline %}補件截止日 <b>{{ st.deficiency_deadline }}</b> {% else %}期限{% endif %}前修改送出；此清單依最近一次系統檢核，送出後於下次檢核更新。補件通知信另列不阻擋流程的「提醒項目」（例如口試日期未填），送出整份表單時一併補上即可，所以信上的項目數可能比這裡多。
+    </p>
+</div>
+{% endfor %}
+
+{% if has_draft %}
+<div class="section" style="border-color:#f0d69b; background:#fffaf0;"><p>你有暫存但尚未送出的資料。暫存不算送出，填寫截止後只有暫存會視為未填寫，請記得按「送出」。</p></div>
+{% endif %}
+{% if student_open %}
+<form method="GET" action="{{ url_for('form') }}" style="display:flex; gap:8px; align-items:flex-end; margin:16px 0;">
+    <div>
+        <label>本期受理學期</label>
+        <input type="text" value="{{ current_term|term_label }}" readonly style="background:#eee;">
+        <input type="hidden" name="term" value="{{ current_term }}">
+    </div>
+    <button type="submit" class="btn btn-primary">開始填寫</button>
+</form>
+{% else %}
+<div class="section" style="margin-top:16px;"><p>本學期尚未開放填寫，請待系辦公告後再登入。</p></div>
+{% endif %}
+
+{% if cases %}
+<table>
+    <thead>
+        <tr>
+            <th>學期</th>
+            <th>委員人數</th>
+            <th>版本</th>
+            <th>最後送出時間</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in cases %}
+        <tr>
+            <td>{{ c.term|term_label }}</td>
+            <td>{{ c.committee_count }}</td>
+            <td>第 {{ c.version }} 版</td>
+            <td>{{ c.submitted_at }}</td>
+            <td>
+                <a href="{{ url_for('view', case_key=c.case_key) }}">檢視</a>
+                {% if student_open and c.term == current_term %}
+                &nbsp;|&nbsp;
+                <a href="{{ url_for('form', term=c.term) }}">修改／補件</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="margin-top:20px; color:#888;">尚無申請紀錄。</p>
+{% endif %}
+{% endblock %}

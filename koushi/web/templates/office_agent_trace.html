@@ -1,0 +1,70 @@
+{% extends "office_base.html" %}
+{% block title %}AI 處理紀錄{% endblock %}
+{% block breadcrumb %}AI 處理紀錄{% endblock %}
+{% block extra_head %}
+<style>
+    .trace-filter{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+    .trace-filter label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+    .trace-filter input,.trace-filter select{padding:6px 8px;border:1px solid var(--line);border-radius:2px;font:inherit;background:white}
+    .trace-filter .check{display:flex;gap:6px;align-items:center;font-size:13px;color:inherit;margin:0 0 8px}
+    .trace-table td{vertical-align:top}
+    .trace-table small{color:var(--muted)}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>AI 處理紀錄</h1><p class="footnote" style="margin:0;">舊名 Agent 軌跡</p>
+        <p>每一次 agent 執行（一封信、一個建議主題或一個問題）的完整步驟：用了哪個工具、輸入摘要、輸出、決策、延遲與 token，以及專員之後的決定。資料直接讀自只能追加的稽核日誌（<code>audit_log.json</code>，來源 <code>agent_trace</code>），本頁唯讀。</p>
+    </div>
+    <a class="row-action" href="{{ url_for('office_agent_metrics') }}">看 AI 成效統計</a>
+</div>
+
+<div class="case-section">
+    <form method="get" action="{{ url_for('office_agent_trace') }}" class="trace-filter">
+        <div><label for="f-agent">Agent</label>
+            <select id="f-agent" name="agent"><option value="">全部</option>
+                {% for key, label in agents.items() %}<option value="{{ key }}" {{ 'selected' if filters.agent == key else '' }}>{{ label }}</option>{% endfor %}
+            </select></div>
+        <div><label for="f-from">開始日</label><input type="date" id="f-from" name="date_from" value="{{ filters.date_from }}"></div>
+        <div><label for="f-to">結束日</label><input type="date" id="f-to" name="date_to" value="{{ filters.date_to }}"></div>
+        <label class="check"><input type="checkbox" name="needs_human" value="1" {{ 'checked' if filters.needs_human else '' }}> 需人工</label>
+        <label class="check"><input type="checkbox" name="has_error" value="1" {{ 'checked' if filters.has_error else '' }}> 有錯誤</label>
+        <div><button type="submit">篩選</button> <a class="row-action" href="{{ url_for('office_agent_trace') }}">清除</a></div>
+    </form>
+    <p class="footnote">顯示內容已再遮蔽一次：8 碼以上數字（學號、帳號）遮成 *、電子郵件只留首字與網域。送模型前就去除的個資（身分證、帳號、地址）本來就不在軌跡裡。</p>
+</div>
+
+<div class="case-section">
+    <div class="section-heading"><h2>執行紀錄 <span class="total-count">{{ total }}</span>{% if total > runs|length %} <small>（顯示最新 {{ runs|length }} 筆）</small>{% endif %}</h2></div>
+    {% if runs %}
+    <div class="table-scroll"><table class="trace-table">
+        <thead><tr>
+            <th scope="col">時間</th><th scope="col">Agent</th><th scope="col">主題／追蹤鍵</th><th scope="col" class="num">步驟</th>
+            <th scope="col">最後決策</th><th scope="col">專員</th><th scope="col">模型／prompt</th>
+            <th scope="col" class="num">延遲 ms</th><th scope="col" class="num">token 入／出</th><th scope="col"><span class="sr-only">查看</span></th>
+        </tr></thead>
+        <tbody>
+        {% for r in runs %}
+        <tr>
+            <td><small>{{ r.started_at|fmt_time }}</small><br><small title="執行代號 {{ r.run_id }}">#{{ r.run_id[:8] }}</small></td>
+            <td>{{ r.agent_label }}</td>
+            <td>{% if r.question %}問題：{{ r.question }}{% elif titles.get(r.task_id) %}{{ titles[r.task_id] }}{% else %}<small>{{ r.subject|codes_to_labels }}</small>{% endif %}</td>
+            <td class="num">{{ r.steps }}</td>
+            <td>{{ r.final_decision|decision_label or '—' }}
+                {% if r.human_required %}<br><span class="badge review">需人工</span>{% endif %}
+                {% if r.has_error %}<br><span class="badge missing">有錯誤</span>{% endif %}</td>
+            <td>{% if r.staff_steps %}{{ r.staff_decision|decision_label }}<br><small>{{ r.staff_steps }} 筆</small>{% else %}<small>—</small>{% endif %}</td>
+            <td><small>{{ r.model or '—' }}{% if r.prompt_version %}<br>{{ r.prompt_version }}{% endif %}</small></td>
+            <td class="num">{{ r.latency_ms if r.latency_ms is not none else '—' }}</td>
+            <td class="num">{% if r.prompt_tokens or r.completion_tokens %}{{ r.prompt_tokens }}／{{ r.completion_tokens }}{% else %}—{% endif %}</td>
+            <td><a class="row-action" href="{{ url_for('agent_trace_run', tid=r.task_id) }}">查看步驟</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+    {% else %}
+    <p class="footnote">{% if filters.agent or filters.date_from or filters.date_to or filters.needs_human or filters.has_error %}沒有符合篩選條件的執行紀錄。{% else %}目前還沒有任何 agent 執行紀錄。信箱 agent 讀信、「AI 建議」頁產生建議或問答助理回答後，每一步都會出現在這裡。{% endif %}</p>
+    {% endif %}
+</div>
+{% endblock %}

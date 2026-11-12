@@ -1,0 +1,30 @@
+這個資料夾裡的 Office 檔案都不進版本控制（可能包含個資）。
+
+建立 schema 5 主檔需要：
+
+  oral-exam-agent/
+    resource/
+      mockdata/                          目前的唯讀輸入根目錄
+        附件2-系所審核名單(委員資料).xlsx Portal 匯出；已包含案件與委員資料
+        附件3/                           每位學生寄回的 .xls/.xlsx/.xlsm
+        data/
+          委員個資.xlsx                 委員資料輸入快照
+          師生對照表.xlsx               外部權威資料，尚未準備可先缺省
+          距離表.csv                    外部權威資料，尚未準備可先缺省
+      template/                          附件格式範本
+    outputs/
+      YYYY-MM-DD/
+        口試主檔-YYYY-MM-DD.xlsx
+        data/委員個資.xlsx               本批次更新後的 Registry
+
+建立主檔：
+  .venv\Scripts\python.exe -m koushi build
+
+主檔是自動產生的唯讀快照，不在 Excel 內人工補資料。
+resource/mockdata 只讀；所有程式產出都進 outputs 的日期批次資料夾。
+師生對照表與距離表缺少時，程式不猜測，也不產生人工待填檔。
+附件2委員先保持案件級暫定身分；附件3身分證確認後才跨案件合併與沿用撥帳資料。
+
+附件4／5／6已由 schema 5 主檔自動產生。
+論文題目、口試開始／結束時間與口試地點是可空白預留欄位；
+目前來源沒有值時保持空白，不人工代填，也不影響附件4／5／6。

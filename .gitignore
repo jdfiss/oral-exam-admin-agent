@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────
+# 這個專案處理的是真實的學生與口試委員個資：
+#   姓名、學號、身分證字號、銀行帳號、戶籍地址、Email
+# 一律不進版控。GitHub 的 commit 歷史刪不乾淨，推上去就等於外洩。
+#
+# 組員要跑程式，請自己把來源檔放到對應位置（見 README「怎麼用」）。
+# ─────────────────────────────────────────────────────────
+
+# 來源檔（含個資）
+resource/mockdata/
+附件1*.xlsx
+附件2*.xlsx
+附件3*.xls
+附件3*.xlsx
+附件3/
+附件4*.doc
+附件4*.docx
+附件5*.xlsx
+附件6*.xlsx
+
+# 主檔、對照表、範本、產出（全部含個資）
+口試主檔.xlsx
+data/
+範本/
+輸出/
+outputs/
+
+# 保險：任何位置的 Office 檔案都擋掉
+*.xls
+*.xlsx
+*.xlsm
+*.doc
+*.docx
+*.csv
+# 正式附件範本（附件7／8 的 PDF 是真實清冊掃描，含真實姓名、學號與銀行分行）
+resource/template/*.pdf
+# 本機額外的匿名檢查禁用詞（真實人名等，見 tests/test_anonymity.py）
+.anonymity-denylist.txt
+~$*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+
+# 編輯器與作業系統
+.vscode/
+.idea/
+.claude/
+tmp/
+.tmp_test/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 進度報告含真實學生姓名與撤銷案等敏感資訊，只留在本機
+進度報告.md

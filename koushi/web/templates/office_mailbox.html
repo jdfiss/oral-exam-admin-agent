@@ -1,0 +1,200 @@
+{% extends "office_base.html" %}
+{% block title %}來信處理{% endblock %}
+{% block breadcrumb %}來信處理{% endblock %}
+{% block content %}
+{% set field = 'style="padding:5px 7px;border:1px solid var(--line);border-radius:2px;font:inherit;"' %}
+{% set open_anchor = request.args.get('open', '') %}
+<div class="page-heading">
+    <div>
+        <h1>來信處理</h1>
+        <p><b>這頁要做的事：</b>點開「等你處理」的來信，核對 AI 擬好的內容，按綠色「核准…」按鈕，或按「退回／不採用」。核准後才會寫入或寄出。</p>
+        <details class="page-more explain"><summary>更多說明</summary>
+            <p>（本頁舊名「信箱 agent」。）業務信箱的每一封來信都由 agent 辨識寄件者、連結案件、分類摘要並提出建議。低風險動作依規則自動完成；修改附件4、回信等高風險動作只準備草稿，專員核准後才執行。</p>
+            <p>附件4 是否確認仍只由文件中心的既有流程決定。每封信展開後的「詳細資料」裡有寄件者、依據、風險、政策理由與執行軌跡（AI 每一步做了什麼的紀錄），平常不用看。</p>
+            <p>自動收件通知目前<b>{{ '已啟用' if settings.mailbox_auto_reply_enabled else '關閉' }}</b>（可在「期限設定」切換）。</p>
+        </details>
+    </div>
+</div>
+
+<nav class="mail-filters" aria-label="依處理狀態篩選">
+    <a href="{{ url_for('office_mailbox', status='awaiting_staff') }}" class="{{ 'active' if status_filter == 'awaiting_staff' else '' }}">待處理 <b class="{{ 'overdue-text' if counts.awaiting_staff else '' }}">{{ counts.awaiting_staff }}</b></a>
+    <a href="{{ url_for('office_mailbox', status='auto_done') }}" class="{{ 'active' if status_filter == 'auto_done' else '' }}">自動完成 <b>{{ counts.auto_done }}</b></a>
+    <a href="{{ url_for('office_mailbox', status='handled') }}" class="{{ 'active' if status_filter == 'handled' else '' }}">已完成 <b>{{ counts.handled }}</b></a>
+    <a href="{{ url_for('office_mailbox', status='ignored') }}" class="{{ 'active' if status_filter == 'ignored' else '' }}">不用處理 <b>{{ counts.ignored }}</b></a>
+    <a href="{{ url_for('office_mailbox') }}" class="{{ 'active' if not status_filter else '' }}">全部 <b>{{ counts.total }}</b></a>
+</nav>
+
+{% macro mail_card(m) %}
+    {% set field = 'style="padding:5px 7px;border:1px solid var(--line);border-radius:2px;font:inherit;"' %}
+    {% set open_anchor = request.args.get('open', '') %}
+    {% set a = m.analysis %}
+    {% set anchor_id = anchor(m.message_id) %}
+    {% set pending = m.actions|selectattr('status', 'equalto', 'pending')|list %}
+    {% set has_draft = pending|selectattr('policy', 'equalto', 'draft')|list %}
+    {% set ns = namespace(main=[], other=[], change='') %}
+    {% for act in m.actions %}
+        {% if act.status == 'pending' and (act.policy == 'draft' or act.type == 'record_change_request' or (act.policy == 'suggest' and not has_draft)) %}{% set ns.main = ns.main + [act] %}{% else %}{% set ns.other = ns.other + [act] %}{% endif %}
+        {% if act.type == 'apply_correction' and not ns.change %}{% for c in act.params.changes %}{% set ns.change = ns.change ~ ('；' if ns.change else '') ~ (c.label or c.requested or '') ~ ' ' ~ (c.before if c.before is defined else '') ~ ' → ' ~ (c.after if c.after is defined else '') %}{% endfor %}{% endif %}
+    {% endfor %}
+    {% set bundle = ns.main|selectattr('policy', 'equalto', 'draft')|list if (ns.main|selectattr('policy', 'equalto', 'draft')|list|length) >= 2 and (ns.main|length) == (ns.main|selectattr('policy', 'equalto', 'draft')|list|length) else [] %}
+    <details class="mail-card" id="{{ anchor_id }}"{% if open_anchor == anchor_id %} open{% endif %}>
+        <summary>
+            {% if m.status != 'awaiting_staff' %}<span class="mail-state">{{ {'auto_done': '已完成（自動）', 'handled': '已完成', 'ignored': '不用處理'}.get(m.status, MA.MAIL_STATUS_LABELS[m.status]) }}</span>{% endif %}
+            <b>{{ m.sender.name or MA.ROLE_LABELS[m.sender.role] }}</b>
+            <span class="sep">｜</span>{{ MA.CATEGORY_LABELS.get(a.category, a.category) }}
+            <span class="sep">｜</span>{{ ns.change or (a.summary or m.subject or '')|replace('（離線備援）', '')|truncate(48, True, '…') }}
+            {% if a.suspicious %}<span class="badge missing">　疑似夾帶指令</span>{% endif %}{% if m.pii_redactions %}<span class="badge missing">　含個資已遮蔽、未送模型</span>{% endif %}{% if m.llm_error %}<span class="badge missing">　AI 判讀失敗</span>{% endif %}{% if not m.sender.verified %}<span class="badge missing">　身分未驗證</span>{% endif %}
+        </summary>
+        <div class="mail-body">
+            {% if a.suspicious %}<p class="warn">這封信疑似夾帶指令：系統不自動執行任何動作。</p>{% endif %}
+            {% if not m.sender.verified %}<p class="warn">寄件者身分未驗證，請先確認是本人。</p>{% endif %}
+            {% if m.llm_error %}<p class="warn">AI 判讀失敗，請你人工判斷這封信。</p>{% endif %}
+            {% set other_pending = ns.other|selectattr('status', 'equalto', 'pending')|selectattr('policy', 'in', ['draft', 'suggest'])|list %}
+            {# 同一封信已有 AI 擬好的修改：「到文件中心判讀」重複，不顯示（核准或退回時一併結掉） #}
+            {% if ns.main|selectattr('type', 'equalto', 'apply_correction')|list %}{% set other_pending = other_pending|rejectattr('type', 'equalto', 'review_attachment4_reply')|list %}{% endif %}
+            {% if bundle %}
+            <form method="post" action="{{ url_for('mailbox_approve_all') }}" class="mail-split">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="message_id" value="{{ m.message_id }}">
+                {% for act in bundle if act.type == 'apply_correction' %}
+                <section class="mail-act"><h3>AI 判定信件摘要</h3>{{ changes_table(act) }}</section>
+                {% endfor %}
+                {{ original(m) }}
+                {% for act in bundle if act.type != 'apply_correction' %}
+                <section class="mail-act">
+                    {% if act.draft %}{{ draft_box(act, 'body_' ~ act.id) }}{% else %}<h3>{{ act.label }}</h3><p>{{ act.rationale }}</p>{% endif %}
+                </section>
+                {% endfor %}
+                <div class="mail-buttons">
+                    <input type="text" name="handler" required placeholder="處理人" value="{{ handler }}" size="6" aria-label="處理人">
+                    <button type="submit" name="decision" value="approve" class="primary">核准／寄出</button>
+                    <button type="submit" name="decision" value="reject">退回</button>
+                </div>
+            </form>
+            {% else %}
+            <div class="mail-split">
+                <div class="mail-work">
+                    {% for act in ns.main + other_pending %}
+                    <section class="mail-act">
+                        {% if act.type == 'apply_correction' %}<h3>AI 判定信件摘要</h3>{{ changes_table(act) }}
+                        {% elif not act.draft %}<h3>{{ act.label }}</h3><p>{{ act.rationale }}</p>{% endif %}
+                        {{ action_form(act, m) }}
+                    </section>
+                    {% endfor %}
+                    {% if m.status == 'awaiting_staff' and not ns.main and not other_pending %}
+                    <form method="post" action="{{ url_for('mailbox_mark') }}" class="mail-buttons">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="message_id" value="{{ m.message_id }}">
+                        <input type="text" name="handler" required placeholder="處理人" value="{{ handler }}" size="6" aria-label="處理人">
+                        <button type="submit" name="status" value="handled" class="primary">標為已處理</button>
+                        <button type="submit" name="status" value="ignored">略過</button>
+                    </form>
+                    {% endif %}
+                    {% if m.status == 'awaiting_staff' and not (ns.main + other_pending)|selectattr('draft')|list %}
+                    <form method="post" action="{{ url_for('mailbox_reply') }}" class="mail-act">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="message_id" value="{{ m.message_id }}">
+                        <label class="mail-act-label" for="reply-{{ anchor_id }}">回信</label>
+                        <p class="mail-meta">收件人：{{ m.from }}</p>
+                        <textarea id="reply-{{ anchor_id }}" name="body" rows="6">{{ '同學' if m.sender.role == MA.ROLE_STUDENT else '老師' }}您好：
+
+</textarea>
+                        <div class="mail-buttons">
+                            <input type="text" name="handler" required placeholder="處理人" value="{{ handler }}" size="6" aria-label="處理人">
+                            <button type="submit" class="primary">寄出回信</button>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+                {{ original(m) }}
+            </div>
+            {% endif %}
+            {% if bundle and other_pending %}
+            {% for act in other_pending %}
+            <section class="mail-act">
+                <h3>{{ act.label }}</h3>
+                {% if act.type == 'apply_correction' %}{{ changes_table(act) }}{% elif not act.draft %}<p>{{ act.rationale }}</p>{% endif %}
+                {{ action_form(act, m) }}
+            </section>
+            {% endfor %}
+            {% endif %}
+            {% if m.handled_by %}<p>{{ MA.MAIL_STATUS_LABELS[m.status] }}：{{ m.handled_by }} {{ m.handled_at|fmt_time }}{% if m.note %}（{{ m.note }}）{% endif %}</p>{% endif %}
+            <p class="mail-trace-link"><a class="row-action" href="{{ url_for('agent_trace_run', tid=trace_task_id('mailbox', m.run_id, [m.message_id])) }}">AI 處理紀錄</a></p>
+        </div>
+    </details>
+{% endmacro %}
+
+{% macro original(m) %}
+<details class="mail-original">
+    <summary>{{ '教授' if m.sender.role == MA.ROLE_ADVISOR else '' }}來信原文</summary>
+    <p class="mail-meta">寄件人：{{ m.from_display or m.from }}　寄件時間：{{ (m.received_at|fmt_time) or '（信件未標示）' }}{% if m.subject %}　主旨：{{ m.subject }}{% endif %}</p>
+    <pre class="mail-raw">{{ m.reply_text }}</pre>
+    {% if m.attachments %}<p class="mail-meta">附件：{{ m.attachments|join('、') }}</p>{% endif %}
+</details>
+{% endmacro %}
+
+{% macro changes_table(act) %}
+<div class="table-scroll"><table>
+    <thead><tr><th>學生</th><th>欄位</th><th>修改前</th><th>修改後</th>{% if act.params.changes|rejectattr('status', 'equalto', 'mapped')|list %}<th>狀態</th>{% endif %}</tr></thead>
+    <tbody>{% for c in act.params.changes %}
+    <tr><td>{{ c.student or (c.case_key|case_label if c.case_key else '') }}</td><td>{{ c.label or c.requested }}</td><td>{{ c.before if c.before is defined else '' }}</td><td><b>{{ c.after if c.after is defined else '' }}</b></td>
+        {% if act.params.changes|rejectattr('status', 'equalto', 'mapped')|list %}<td>{% if c.status == 'mapped' %}<span class="badge ready">可套用</span>{% elif c.status == 'no_change' %}<span class="badge neutral">無變動</span>{% else %}<span class="badge missing">需人工</span> <small>{{ c.reason }}</small>{% endif %}</td>{% endif %}</tr>
+    {% endfor %}</tbody>
+</table></div>
+{% endmacro %}
+
+{% macro draft_box(act, field_name) %}
+<label class="mail-act-label" for="{{ field_name }}-{{ act.id }}">回信（草稿）</label>
+<p class="mail-meta">收件人：{{ act.draft.to }}　主旨：{{ act.draft.subject }}</p>
+<textarea id="{{ field_name }}-{{ act.id }}" name="{{ field_name }}" rows="8">{{ act.draft.body }}</textarea>
+{% if act.params and act.params.ai_answer %}{% set src = act.params.sources %}
+<p class="mail-meta">AI 依據：{% if src.facts %}案件資料（{{ src.facts|join('、') }}）{% endif %}{% if src.facts and src.memory %}；{% endif %}{% for m in src.memory %}參考 {{ m.at }} {{ m.by }} 回覆「{{ m.question|truncate(24, True, '…') }}」{% if not loop.last %}；{% endif %}{% endfor %}{% if not src.facts and not src.memory %}沒有可用資料{% endif %}{% if act.params.unanswered %}　｜　【請專員補充】填完才能寄出{% endif %}</p>
+{% endif %}
+{% endmacro %}
+
+{% macro action_form(act, m) %}
+<form method="post" action="{{ url_for('mailbox_action') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="message_id" value="{{ m.message_id }}">
+    <input type="hidden" name="action_id" value="{{ act.id }}">
+    {% if act.draft %}{{ draft_box(act, 'body') }}{% endif %}
+    <div class="mail-buttons">
+    <input type="text" name="handler" required placeholder="處理人" value="{{ handler }}" size="6" aria-label="處理人">
+    {% if act.policy == 'draft' or act.type == 'record_change_request' %}
+    {% set changes = act.params.changes if act.type == 'apply_correction' and act.params and act.params.changes else [] %}
+    {% if act.type == 'apply_correction' and changes|length == 1 and changes[0].after is defined %}{% set approve_label = '核准，' ~ (changes[0].label or changes[0].requested or '') ~ '改成 ' ~ changes[0].after %}
+    {% elif act.type == 'apply_correction' %}{% set approve_label = '核准這 ' ~ changes|length ~ ' 項修改' %}
+    {% elif act.type == 'reply_draft' %}{% set approve_label = '核准／寄出' %}
+    {% elif act.type == 'record_change_request' %}{% set approve_label = '記錄異動申請' %}
+    {% else %}{% set approve_label = '核准' %}{% endif %}
+    <button type="submit" name="decision" value="approve" class="primary">{{ approve_label }}</button>
+    {% endif %}
+    {% if act.type == 'record_change_request' %}<button type="submit" name="decision" value="reject">不記錄</button>
+    {% elif act.policy == 'draft' %}<button type="submit" name="decision" value="reject">退回</button>
+    {% elif act.policy == 'suggest' %}<button type="submit" name="decision" value="done" class="primary">已處理</button>{% endif %}
+
+    {% if act.target_case and act.type in ('consider_unlock', 'record_change_request') %}<a class="row-action" href="{{ url_for('office_case_detail', case_key=act.target_case, open='unlock') }}#case-unlock">到案件頁（學生修改權限）</a>
+    {% elif act.target_case and act.type == 'follow_up' %}<a class="row-action" href="{{ url_for('office_case_detail', case_key=act.target_case) }}">到案件頁</a>{% endif %}
+    {% if act.type == 'register_committee_data' %}<a class="row-action" href="{{ url_for('office_committees') }}">到委員個資頁</a>{% endif %}
+    </div>
+</form>
+{% endmacro %}
+
+{% set todo_mails = mails|selectattr('status', 'equalto', 'awaiting_staff')|list %}
+{% set done_mails = mails|rejectattr('status', 'equalto', 'awaiting_staff')|list %}
+{% if todo_mails or not done_mails %}
+<section class="card card-todo">
+    <h2 class="card-title">待處理 <span class="card-count">{{ todo_mails|length }} 封</span></h2>
+    {% if todo_mails %}<p class="card-hint">點一封信展開，核對後按綠色按鈕。</p>{% endif %}
+    {% for m in todo_mails %}{{ mail_card(m) }}{% else %}
+    <p class="card-hint keep">{% if status_filter %}這個分類目前沒有來信。{% else %}目前沒有來信。{% endif %}</p>
+    {% endfor %}
+</section>
+{% endif %}
+{% if done_mails %}
+<section class="card card-done">
+    <h2 class="card-title">已完成／不用處理 <span class="card-count">{{ done_mails|length }} 封</span></h2>
+    {% for m in done_mails %}{{ mail_card(m) }}{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

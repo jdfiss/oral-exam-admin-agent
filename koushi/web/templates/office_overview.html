@@ -1,0 +1,233 @@
+{% extends "office_base.html" %}
+{% block title %}工作總覽{% endblock %}
+{% block breadcrumb %}工作總覽{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>口試案件工作總覽</h1>
+    </div>
+</div>
+
+{% for level, message in banners %}
+<div class="flash {{ level }}" role="alert">{{ message }}</div>
+{% endfor %}
+
+{% set act = ai.activity %}
+{% set pend = act.pending if act is not none else none %}
+<div class="case-section todo" id="todo-now">
+    <div class="section-heading">
+        <h2>待辦清單</h2>
+        {% if ai.stopped %}<span class="badge missing">AI 已緊急停止</span>{% endif %}
+    </div>
+    {% set ns = namespace(n=0) %}
+    <ul class="todo-list">
+        {% for m in awaiting_mails[:5] %}{% set ns.n = ns.n + 1 %}
+        {% set drafts = m.actions|selectattr('policy', 'equalto', 'draft')|selectattr('status', 'equalto', 'pending')|list %}
+        <li>
+            <div class="what">核准<b>{{ MA.ROLE_LABELS.get(m.sender.role) or m.sender.name or '寄件者' }}</b>・{{ MA.CATEGORY_LABELS.get(m.analysis.category, '待判讀') }}{% if drafts %}　<span class="count">{{ drafts|length }}</span> 份{% endif %}</div>
+            <a class="btn go" href="{{ url_for('office_mailbox', status='awaiting_staff', open=mail_anchor(m.message_id)) }}#{{ mail_anchor(m.message_id) }}">核對</a>
+        </li>
+        {% endfor %}
+        {% if awaiting_mails|length > 5 %}<li><div class="what">其餘來信　<span class="count">{{ awaiting_mails|length - 5 }}</span> 封</div><a class="btn go" href="{{ url_for('office_mailbox', status='awaiting_staff') }}">全部來信</a></li>{% endif %}
+        {% if pend and pend.proposals %}{% set ns.n = ns.n + 1 %}
+        <li>
+            <div class="what">回覆 AI 建議<span class="count">{{ pend.proposals }}</span> 項{% if pend.proposal_errors %}（{{ pend.proposal_errors }} 項需人工判斷）{% endif %}</div>
+            <a class="btn go" href="{{ url_for('office_ai_proposals') }}">決定</a>
+        </li>
+        {% endif %}
+        {% if review_pending_count %}{% set ns.n = ns.n + 1 %}
+        <li>
+            <div class="what">審核委員資格　<span class="count">{{ review_pending_count }}</span> 件{% if waiting_student %}（{{ waiting_student|length }} 件學生補件中）{% endif %}</div>
+            <a class="btn go" href="#review-queue">審核</a>
+        </li>
+        {% endif %}
+        {% if change_request_cases %}{% set ns.n = ns.n + 1 %}
+        <li>
+            <div class="what">學生異動申請　<span class="count">{{ change_request_cases|length }}</span> 位</div>
+            <span>{% for key in change_request_cases %}<button class="btn go" data-case="{{ key }}" title="{{ key }}">{{ case_names.get(key) or (key|case_label) }}</button> {% endfor %}</span>
+        </li>
+        {% endif %}
+        {% if student_overdue_count %}{% set ns.n = ns.n + 1 %}
+        <li>
+            <div class="what">聯絡補件逾期學生　<span class="count">{{ student_overdue_count }}</span> 位</div>
+            <button class="btn go" data-jump-filter="deficiency">查看</button>
+        </li>
+        {% endif %}
+        {% if stats.not_filled %}{% set ns.n = ns.n + 1 %}
+        <li>
+            <div class="what">學生未填補充資料　<span class="count">{{ stats.not_filled }}</span> 位</div>
+            <button class="btn go" data-jump-filter="未填寫">查看</button>
+        </li>
+        {% endif %}
+        {% if stats.unmatched %}{% set ns.n = ns.n + 1 %}
+        <li>
+            <div class="what">附件2 查無的學生填寫　<span class="count">{{ stats.unmatched }}</span> 筆</div>
+            <button class="btn go" data-jump-filter="附件2查無">查看</button>
+        </li>
+        {% endif %}
+        {% if build_status and build_status.status == 'failed' %}{% set ns.n = ns.n + 1 %}
+        <li>
+            <div class="what">案件資料更新失敗</div>
+            <a class="btn go" href="{{ url_for('office_import') }}">看原因</a>
+        </li>
+        {% endif %}
+        {% if not ns.n %}
+        <li><div class="what done">沒有待辦事項。</div></li>
+        {% endif %}
+    </ul>
+</div>
+
+{% if removed_cases %}
+<div class="panel" style="margin-bottom:24px;">
+    <h2>附件2 重傳後消失、已寄過補件信 <span class="total-count">{{ removed_cases|length }}</span></h2>
+    <p class="footnote">這些學生在新上傳的附件2 裡已經沒有，但先前收過補件信。系統不會自動刪除，請確認（例如撤銷申請或系辦傳錯檔）後按「已確認」。</p>
+    {% for key in removed_cases %}
+    <form method="post" action="{{ url_for('acknowledge_removed_case', case_key=key) }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <strong title="{{ key }}">{{ key|case_label }}</strong>
+        <input type="text" name="handler" value="{{ handler }}" placeholder="處理人" required>
+        <input type="text" name="note" placeholder="備註（選填）">
+        <button type="submit" class="row-action">已確認</button>
+    </form>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if reviews %}
+<div class="case-section" id="review-queue" style="margin-bottom:28px;">
+    <div class="section-heading">
+        <h2>委員資格審核 <span class="total-count">{{ reviews|length }}</span></h2>
+    </div>
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">學生</th>
+                    <th scope="col">要確認的問題</th>
+                    <th scope="col">狀態</th>
+                    <th scope="col"><span class="sr-only">操作</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reviews %}
+                <tr>
+                    <td><strong>{{ r.student_name }}</strong> <small title="{{ r.case_key }}">學號 {{ r.student_id }}・{{ r.case_key.split('-')[0]|term_label }}</small></td>
+                    <td>{% if r.exceptions %}{{ r.exceptions|length }} 項{% else %}無{% endif %}</td>
+                    <td>
+                        {% if not r.review %}<span class="badge review">等你審核</span>{% if r.case_key in waiting_student %}<small>等學生補件</small>{% endif %}
+                        {% elif r.changed_since_clear %}<span class="badge review" title="上次審核：{{ r.review.cleared_by }} {{ r.review.cleared_at }}">委員名單有變動・等你重新審核</span>
+                        {% elif r.new_exceptions %}<span class="badge missing">已審核・之後又有 {{ r.new_exceptions|length }} 項新問題</span>
+                        {% else %}<span class="badge ready">已審核完成</span>{% endif %}
+                    </td>
+                    <td><button class="row-action" data-case="{{ r.case_key }}" data-focus="review-section" aria-label="審核 {{ r.case_key }}">審核</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="case-section">
+    <div class="section-heading">
+        <h2>口試案件總覽 <span class="total-count">{{ submissions|length }}</span></h2>
+        <div class="section-tools">
+            <nav class="view-toggle" aria-label="顯示方式">
+                <a data-view="list" href="{{ url_for('office_overview', view='list', month=cal.month) }}"{% if active_view == 'list' %} class="active" aria-current="page"{% endif %}>清單</a>
+                <a data-view="calendar" href="{{ url_for('office_overview', view='calendar', month=cal.month) }}"{% if active_view == 'calendar' %} class="active" aria-current="page"{% endif %}>月曆</a>
+            </nav>
+            {% if is_judge %}<span class="btn" aria-disabled="true" title="{{ who }}模式不可用" style="opacity:.55;cursor:not-allowed;">匯出 Excel（{{ who }}模式不可用）</span>{% else %}<a class="btn" href="{{ url_for('office_overview_export') }}">匯出 Excel</a>{% endif %}
+            <button type="button" class="info-toggle" data-info-toggle="info-overview-tools" aria-expanded="false" aria-label="顯示方式與匯出說明">i</button>
+        </div>
+    </div>
+    <div id="info-overview-tools" class="info-pop" hidden role="note" style="margin:0 23px 16px;">
+        <p><b>清單／月曆</b>：同一批案件的兩種看法。月曆依「口試日期」排在當天格子裡，方便看同一天有沒有排太多場；點格子裡的姓名可以開案件詳情。</p>
+        <p><b>匯出 Excel</b>：下載全部案件（不論目前畫面有沒有搜尋或篩選），用來存查或給主管看。檔案含學生信箱，請勿外流。</p>
+    </div>
+    <div id="list-view"{% if active_view != 'list' %} hidden{% endif %}>
+    <div class="section-heading list-search">
+        <label class="search"><input id="search" type="search" placeholder="搜尋姓名或學號" aria-label="搜尋姓名或學號"></label>
+    </div>
+    <div class="filters" aria-label="案件分類">
+        <button class="filter active" data-filter="all" aria-pressed="true">全部案件</button>
+        <button class="filter" data-filter="未填寫" aria-pressed="false">未填寫</button>
+        <button class="filter" data-filter="附件2查無" aria-pressed="false">附件2 查無此人</button>
+        <button class="filter" data-filter="deficiency" aria-pressed="false">學生有待補</button>
+    </div>
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">學生</th>
+                    <th scope="col">學期</th>
+                    <th scope="col">口試日期</th>
+                    <th scope="col" title="學生是否已在本系統送出補充資料">補充資料</th>
+                    <th scope="col" title="要學生補的資料；系統會寄補件信、到期前催件">學生待補</th>
+                    <th scope="col" title="委員撥帳／身分資料，系統直接向委員本人索取，不找學生">委員待補</th>
+                    <th scope="col"><span class="sr-only">操作</span></th>
+                </tr>
+            </thead>
+            <tbody id="cases">
+                {% for s in submissions %}
+                <tr data-status="{{ s.status }}" data-deficiency="{{ '1' if s.deficiency_count else '0' }}" data-search="{{ (s.student_name ~ ' ' ~ s.student_id)|lower }}">
+                    <td><strong>{{ s.student_name or s.student_id }}</strong> <small>學號 {{ s.student_id }}</small><small>{% if s.no_email %}<span class="overdue-text">無信箱，收不到補件信</span>{% else %}{{ s.student_email }}{% endif %}</small></td>
+                    <td title="{{ s.term }}">{{ s.term|term_label }}</td>
+                    <td>{{ s.exam_date or '（未填）' }}</td>
+                    <td>
+                        {% if s.status == '未填寫' %}<span class="badge missing">未填寫</span>
+                        {% elif s.status == '附件2查無' %}<span class="badge missing" title="學生有填寫，但附件2 沒有這位學生；常見原因是學期填錯">附件2 查無此人</span>
+                        {% elif s.status == '已撤銷' %}<span class="badge neutral">已撤銷</span>
+                        {% else %}<span class="badge ready">已送出</span><small>第 {{ s.version }} 版</small>{% endif %}
+                        {% if s.hints %}<small title="{{ s.hints|join('；') }}">{{ s.hints|length }} 項自我檢查提醒</small>{% endif %}
+                    </td>
+                    <td>{% if s.deficiency_count %}<span class="badge missing">{{ s.deficiency_count }} 項</span>{% else %}<span class="badge neutral">—</span>{% endif %}{% if s.late_added %}<small class="overdue-text" title="附件2 重傳時才出現，補件截止日不變">補件時間較短</small>{% endif %}</td>
+                    <td>{% if s.other_count %}<span class="badge neutral">{{ s.other_count }} 項</span><small>系統已向委員索取</small>{% else %}<span class="badge neutral">—</span>{% endif %}</td>
+                    <td><button class="row-action" data-case="{{ s.id }}" aria-label="查看 {{ s.student_id }} 案件">查看</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div id="empty" class="empty" hidden><h3>沒有符合條件的案件</h3><p>試試其他姓名，或查看全部案件。</p><button id="reset-search">清除搜尋與分類</button></div>
+    <footer class="table-footer"><span id="result-count" aria-live="polite"></span></footer>
+    </div>
+    <div id="calendar-view"{% if active_view != 'calendar' %} hidden{% endif %}>
+        {% include "_overview_calendar.html" %}
+    </div>
+</div>
+<details class="collapsed-section" id="ai-today" style="margin-top:24px;">
+    <summary>AI 今日動態</summary>
+    <div class="todo">
+    <p class="footnote keep" style="margin:0 16px 10px;">模型：{{ ai.model }}{% if ai.last_run %}　·　每日自動化最近一次：{{ ai.last_run }}{% endif %}</p>
+    {% if act is none %}
+    <p class="footnote" style="margin:0 16px 12px;">AI 摘要暫時讀不到，請到「AI 處理紀錄」頁查看。</p>
+    {% else %}
+    <table>
+        <thead><tr><th scope="col">事項</th><th scope="col" class="num">件數</th><th scope="col">說明</th><th scope="col"><span class="sr-only">操作</span></th></tr></thead>
+        <tbody>
+            <tr><td colspan="4"><b>今日動態</b>（{{ act.day }}）</td></tr>
+            {% if act.has_activity %}
+            <tr><td>信箱 agent 分析來信</td><td class="num">{{ act.today.mails }}</td><td class="note">{% for label, n in act.today.categories %}{{ label }} {{ n }}{% if not loop.last %}、{% endif %}{% else %}今天沒有新來信{% endfor %}</td><td><a class="row-action" href="{{ url_for('office_agent_trace', agent='mailbox', date_from=act.day, date_to=act.day) }}">軌跡</a></td></tr>
+            <tr><td>自動完成</td><td class="num">{{ act.today.auto_done }}</td><td class="note">只有低風險動作依系辦設定自動完成。</td><td><a class="row-action" href="{{ url_for('office_mailbox', status='auto_done') }}">檢視</a></td></tr>
+            <tr><td>新增 AI 建議</td><td class="num">{{ act.today.proposals }}</td><td class="note">{% for label, n in act.today.proposals_by_agent %}{{ label }} {{ n }}{% if not loop.last %}、{% endif %}{% else %}今天沒有新建議{% endfor %}</td><td><a class="row-action" href="{{ url_for('office_ai_proposals') }}">檢視</a></td></tr>
+            <tr><td>AI 重試後通過</td><td class="num">{{ act.today.repairs }}</td><td class="note">AI 第一次的答案沒通過程式檢查、重來一次的件數（技術名稱：自我修正）。</td><td><a class="row-action" href="{{ url_for('office_agent_trace', date_from=act.day, date_to=act.day) }}">軌跡</a></td></tr>
+            <tr><td>AI 判讀失敗、已轉給你</td><td class="num">{% if act.today.failures %}<span class="overdue-text">{{ act.today.failures }}</span>{% else %}0{% endif %}</td><td class="note">AI 看不懂或連線失敗的項目已逐項轉給專員，不會遺失。</td><td><a class="row-action" href="{{ url_for('office_agent_trace', has_error='1', date_from=act.day, date_to=act.day) }}">軌跡</a></td></tr>
+            {% else %}
+            <tr><td colspan="4" class="note">今天 agent 尚未處理來信或產生建議；每日自動化（或「模擬時間與每日流程」頁的「執行本日流程」）跑完後會出現在這裡。</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+    {% endif %}
+    </div>
+</details>
+{% if not submissions %}
+<p style="color:var(--muted); margin-top:16px;">尚無申請紀錄。</p>
+{% endif %}
+{% endblock %}
+
+{% block dialogs %}
+<dialog id="case-dialog" class="drawer" aria-labelledby="case-title">
+    <div class="drawer-head"><span>案件詳情</span><button class="close" data-close="case-dialog" aria-label="關閉案件詳情">×</button></div>
+    <div id="case-detail"></div>
+</dialog>
+{% endblock %}

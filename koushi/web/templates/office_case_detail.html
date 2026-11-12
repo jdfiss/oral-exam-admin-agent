@@ -1,0 +1,171 @@
+{% macro identity_table(text) %}{% set cmp = identity_checks.get(text) %}{% if cmp %}
+<div class="table-scroll identity-compare"><table>
+    <thead><tr><th>欄位</th><th>學生填的</th><th>舊口委資料庫</th></tr></thead>
+    <tbody>{% for row in cmp %}<tr{% if row.differ %} class="differ"{% endif %}><td>{{ row.label }}</td><td>{{ row.student }}</td><td>{{ row.registry }}{% if row.differ %} <span class="badge missing">不同</span>{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}{% endmacro %}
+<h2 id="case-title">{{ review.student_name if review and review.student_name else case_key }}</h2>
+<p class="detail-subtitle" title="案件鍵 {{ case_key }}">{{ case_key|case_label }}</p>
+{% set fixed = {} %}{% for row in corrections if row.correction and not row.member %}{% set _ = fixed.update({row.field: row}) %}{% endfor %}
+{% macro fixed_note(field) %}{% if fixed.get(field) %}<small class="status-ok">已修正，原為 {{ fixed[field].correction.original or '空白' }}</small>{% endif %}{% endmacro %}
+{% if data %}
+<dl class="detail-grid">
+    <div><dt>填寫版本</dt><dd>第 {{ data.get('version', 1) }} 版</dd></div>
+    <div><dt>指導教授</dt><dd>{% if fixed.get('指導教授') %}{{ fixed['指導教授'].shown or '（空白）' }}{{ fixed_note('指導教授') }}{% else %}{% for name in data.advisors or [] %}{{ name }}{% if (data.advisor_emails or {}).get(name) %}<small>{{ data.advisor_emails[name] }}</small>{% endif %}{% if not loop.last %}、{% endif %}{% else %}（未填）{% endfor %}{% endif %}</dd></div>
+    <div><dt>口試日期</dt><dd>{% if fixed.get('口試日期') %}{{ fixed['口試日期'].shown or '（空白）' }}{{ fixed_note('口試日期') }}{% else %}{{ data.exam_date or '（未填）' }}{% endif %}</dd></div>
+    {% for f in ('口試開始時間', '口試結束時間', '口試地點', '口試方式', '論文題目') if fixed.get(f) %}
+    <div><dt>{{ f }}</dt><dd>{{ fixed[f].shown or '（空白）' }}{{ fixed_note(f) }}</dd></div>
+    {% endfor %}
+    <div><dt>委員人數</dt><dd>{{ data.committees|length }}</dd></div>
+    <div><dt>提交時間</dt><dd>{{ data.submitted_at or '（未填）' }}</dd></div>
+</dl>
+{% else %}
+<p class="footnote">學生尚未在本系統填寫補充資料（此案件只來自附件2）。</p>
+{% endif %}
+
+{% if member_fees %}
+<section class="detail-section" id="case-committee-fees">
+    <h3>口試委員與交通費</h3>
+    <ol class="timeline">
+        {% for m in member_fees %}
+        <li><b>{{ m.name or '（未填姓名）' }}</b>{% if m.title %}　{{ m.title }}{% endif %}
+            <br>交通費：{% if m.missing %}<span class="overdue-text">查無距離</span>{% else %}{{ m.fee }}{% endif %}
+            <small>{{ m.unit or '（服務單位未填）' }}</small></li>
+        {% endfor %}
+    </ol>
+</section>
+{% endif %}
+
+<details class="detail-section detail-fold" id="case-ai">
+    <summary>AI 協作<small>{{ ai_panel.mails|length }} 封來信、{{ ai_panel.proposals|length }} 項待決建議</small></summary>
+    <p><button type="button" class="info-toggle" data-info-toggle="info-case-ai" aria-expanded="false" aria-label="AI 協作說明">i</button> 說明</p>
+    <div id="info-case-ai" class="info-pop" hidden role="note">
+        <p>列出信箱 agent 對本案來信的分類、摘要與建議動作（含政策：自動／草稿待核准／建議），以及和本案欄位、委員服務單位或職稱有關、尚待決定的 AI 建議。AI 只提案；核准、套用一律在「信箱 agent」「AI 建議」頁由專員決定並記錄處理人。只列寄件者身分或附件4 代碼已驗證連到本案的來信。</p>
+    </div>
+    {% if not ai_panel.mails and not ai_panel.proposals %}
+    <p>本案目前沒有 AI 處理紀錄：沒有連到本案的來信，也沒有待決的 AI 建議。</p>
+    {% endif %}
+    {% if ai_panel.mails %}
+    <p><b>相關來信 {{ ai_panel.mails|length }}</b></p>
+    <ol class="timeline">
+        {% for m in ai_panel.mails %}
+        <li><b>{{ m.role }}／{{ m.category }}</b>
+            {% if m.status == 'awaiting_staff' %}<span class="badge review">{{ m.status_label }}</span>{% elif m.status == 'auto_done' %}<span class="badge ready">{{ m.status_label }}</span>{% else %}<span class="badge neutral">{{ m.status_label }}</span>{% endif %}
+            {% if m.suspicious %}<span class="badge missing">疑似夾帶指令：不自動執行</span>{% endif %}
+            {% if m.llm_error %}<span class="badge missing">AI 判讀失敗・已轉人工</span>{% endif %}
+            <br>{{ m.summary }}
+            {% if m.actions %}<small>建議動作：{% for a in m.actions %}{{ a.label }}・{{ a.status_label }}{% if not loop.last %}、{% endif %}{% endfor %}</small>{% endif %}
+            <small>{{ m.processed_at }}　<a class="row-action" href="{{ url_for('office_mailbox') }}#{{ mail_anchor(m.message_id) }}">到來信處理</a>　<a class="row-action" href="{{ url_for('agent_trace_run', tid=m.task_id) }}">查看完整軌跡</a></small>
+        </li>
+        {% endfor %}
+    </ol>
+    {% endif %}
+    {% if ai_panel.proposals %}
+    <p><b>待決 AI 建議 {{ ai_panel.proposals|length }}</b></p>
+    <ol class="timeline">
+        {% for p in ai_panel.proposals %}
+        <li><b>{{ p.agent_label }}</b>　{{ p.subject|codes_to_labels }}
+            {% if p.error %}<span class="badge missing">模型失敗・待人工</span>{% elif p.suggestion %}<span class="badge review">AI 建議</span>{% else %}<span class="badge neutral">無建議</span>{% endif %}
+            {% if p.suggestion %}<br>→ {{ p.suggestion }}{% if p.confidence is not none %}<small>信心 {{ (p.confidence * 100)|round|int }}%</small>{% endif %}{% endif %}
+            <small>{{ p.created_at }}　<a class="row-action" href="{{ url_for('office_ai_proposals') }}#proposal-{{ p.id }}">到 AI 建議頁決定</a>　<a class="row-action" href="{{ url_for('agent_trace_run', tid=p.task_id) }}">查看完整軌跡</a></small>
+        </li>
+        {% endfor %}
+    </ol>
+    {% endif %}
+</details>
+
+{% if review %}
+<details class="detail-section detail-fold" id="review-section"{% if not review.review or review.changed_since_clear or review.new_exceptions %} open{% endif %}>
+    <summary>委員資格審核<small>{% if review.exceptions %}要確認 {{ review.exceptions|length }} 項{% else %}沒有標出問題{% endif %}</small></summary>
+    {% if review.exceptions %}
+    <ol class="timeline">
+        {% for item in review.exceptions %}
+        <li><b title="{{ item['問題代碼'] }}">{{ item['問題代碼']|issue_label }}</b>{% if item in review.new_exceptions %} <span class="badge missing">審核後新增</span>{% endif %}　{{ item['說明']|friendly_issue_text }}<small>{{ item['欄位'] }}</small>
+            {{ identity_table(item['說明']) }}</li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p>系統沒有標出問題；仍請確認委員資格後按「審核完成」。</p>
+    {% endif %}
+    {% if review.review %}
+    <p class="footnote keep">已於 {{ review.review.cleared_at }} 由 {{ review.review.cleared_by }} 審核完成{% if review.review.note %}：{{ review.review.note }}{% endif %}</p>
+    {% if review.changed_since_clear %}
+    <p class="overdue-text">審核後委員名單有變動，需要重新審核：重新審核完成之前不會寄新版附件4，也不會向新委員索取個資。</p>
+    {% endif %}
+    {% if review.new_exceptions %}
+    <p class="overdue-text">審核後又出現 {{ review.new_exceptions|length }} 項新問題，請確認是否需要重新審核。</p>
+    {% endif %}
+    {% endif %}
+    <form method="POST" action="{{ url_for('clear_case', case_key=case_key) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="handler" required placeholder="處理人姓名（必填）" value="{{ session.get('handler', '') }}" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:2px;font:inherit;margin-top:10px;">
+        <textarea name="note" rows="2" placeholder="處理說明（選填，例如：業界專家，經系主任同意）" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:2px;font:inherit;margin:10px 0;">{{ release_note }}</textarea>
+        <button type="submit" class="primary">{{ '重新審核完成' if review.review else '審核完成，可以寄附件4' }}</button>
+    </form>
+</details>
+{% endif %}
+
+{% if change_requests|selectattr('status', 'equalto', 'pending')|list or unlock or request.args.get('open') == 'unlock' %}
+<details class="detail-section detail-fold" id="case-unlock"{% if change_requests|selectattr('status', 'equalto', 'pending')|list or request.args.get('open') == 'unlock' %} open{% endif %}>
+    <summary>學生修改權限</summary>
+    {% for r in change_requests %}
+    <p>{% if r.status == 'pending' %}<span class="badge review">待處理</span>{% else %}<span class="badge neutral">已處理</span>{% endif %}
+        {% if not r.verified %}<span class="badge missing">身分未驗證</span>{% endif %}
+        {{ r.reason }}<small>{{ r.at }}・{{ '學生頁' if r.source == 'web' else '業務信箱' }}{% if r.handled_by %}・{{ r.handled_by }} 處理{% endif %}</small></p>
+    {% endfor %}
+    {% if unlock %}<p class="footnote keep">已由 {{ unlock.actor }} 開放修改到 <b>{{ unlock.until }}</b>：{{ unlock.reason }}</p>{% endif %}
+    <form method="POST" action="{{ url_for('unlock_case', case_key=case_key) }}" class="stack-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>開放學生修改到（含）<input type="date" name="until" value="{{ default_until or '' }}" required></label>
+        <input type="text" name="handler" required placeholder="處理人姓名（必填）" value="{{ handler }}">
+        <input type="text" name="reason" required placeholder="原因（必填，例如：口試改期；補件逾期延長）">
+        <button type="submit" class="primary">開放修改</button>
+    </form>
+    {% if change_requests|selectattr('status', 'equalto', 'pending')|list %}
+    <form method="POST" action="{{ url_for('dismiss_change_requests', case_key=case_key) }}" class="stack-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="handler" required placeholder="處理人" value="{{ handler }}">
+        <input type="text" name="note" placeholder="備註（例如：已代為修正）">
+        <button type="submit">不開放，標為已處理</button>
+    </form>
+    {% endif %}
+    <p class="footnote">預設開放到補件截止日；補件截止後的逾期案件可設更晚的日期。異動申請只會送到這裡，系統不會自動開放。</p>
+</details>
+{% endif %}
+
+{% if corrections %}
+<details class="detail-section detail-fold">
+    <summary>系辦修正資料<small>{% set n_fixed = corrections|selectattr('correction')|list|length %}{% if n_fixed %}已修正 {{ n_fixed }} 項{% endif %}</small></summary>
+    <p>修正另外存一層，不改附件2 或學生填寫；之後重傳附件2、學生重新送出都不會蓋掉。改到委員職稱或服務單位，需要重新審核委員資格。</p>
+    {% set corrected = corrections|selectattr('correction')|list %}
+    {% if corrected %}
+    <ol class="timeline">
+        {% for row in corrected %}
+        <li><b>{{ row.label|field_label }}</b>：{{ row.shown|friendly_value(row.field) or '（空白）' }}
+            <small>原為「{{ row.correction.original or '空白' }}」・{{ row.correction.actor }}・{{ row.correction.reason }}・{{ row.correction.at }}</small>
+            <form method="POST" action="{{ url_for('save_correction', case_key=case_key) }}" class="inline-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="target" value="{{ row.member }}|{{ row.field }}">
+                <input type="text" name="handler" placeholder="處理人" value="{{ handler }}" required>
+                <button type="submit" name="action" value="remove" class="row-action">移除修正</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ol>
+    {% endif %}
+    <form method="POST" action="{{ url_for('save_correction', case_key=case_key) }}" class="stack-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>要修正的欄位
+            <select name="target" required>
+                {% for row in corrections %}<option value="{{ row.member }}|{{ row.field }}" title="{{ row.label }}">{{ row.label|field_label }}（目前：{{ row.shown|friendly_value(row.field) or '空白' }}）</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>修正後的值<textarea name="value" rows="4" placeholder="留空代表清空這個欄位；視訊出席填「是」或「否」；整份名單與教授信箱需依系統格式（JSON）填寫，一般請改用個別委員的欄位修正"></textarea></label>
+        <input type="text" name="handler" placeholder="處理人姓名（必填）" value="{{ handler }}" required>
+        <input type="text" name="reason" placeholder="修正原因（必填，例如：教授來信更正職稱）" required>
+        <button type="submit" name="action" value="set" class="primary">儲存修正</button>
+    </form>
+</details>
+{% endif %}
+

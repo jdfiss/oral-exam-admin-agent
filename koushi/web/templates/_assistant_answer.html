@@ -1,0 +1,53 @@
+{%- macro rich(text) -%}
+{%- for kind, value in seg(text) -%}
+{%- if kind == "case" -%}<button type="button" class="row-action link-case" data-case="{{ value }}">{{ value }}{% if case_names.get(value) %} {{ case_names[value] }}{% endif %}</button>
+{%- else -%}{{ value }}{%- endif -%}
+{%- endfor -%}
+{%- endmacro -%}
+{%- macro raw_tables(output, title) -%}
+{% for t in tables(output) %}
+<div class="raw-table table-scroll"><table>
+    <caption>{{ title }}{% if t.title %} · {{ t.title }}{% endif %}</caption>
+    <thead><tr>{% for h in t.headers %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in t.rows %}<tr>{% for c in row %}<td>{{ rich(c) }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table></div>
+{% endfor %}
+{%- endmacro -%}
+<div class="who">問答助理</div>
+{% if ans.kind == "answer" %}
+<div class="answer-text">{{ rich(ans.text) }}</div>
+{% elif ans.kind in ("refused", "out_of_scope") %}
+<div class="answer-text">{{ ans.text }}</div>
+<ul>
+    {% for label, endpoint, anchor in ans.links %}<li><a href="{{ url_for(endpoint) }}{% if anchor %}#{{ anchor }}{% endif %}">{{ label }}</a></li>{% endfor %}
+    {% if ans.link_case %}<li>案件詳情：<button type="button" class="row-action link-case" data-case="{{ ans.link_case }}">{{ ans.link_case }}{% if case_names.get(ans.link_case) %} {{ case_names[ans.link_case] }}{% endif %}</button></li>{% endif %}
+</ul>
+{% else %}
+{% if ans.text %}<div class="answer-text">{{ ans.text }}</div>{% endif %}
+{% if ans.note %}<div class="answer-note">{{ ans.note }}</div>{% endif %}
+{% if ans.problems %}<ul class="answer-problems">{% for p in ans.problems %}<li>{{ rich(p) }}</li>{% endfor %}</ul>{% endif %}
+{% for s in ans.steps %}{{ raw_tables(s.output, "步驟 " ~ s.index ~ "：" ~ s.tool) }}{% endfor %}
+{% if ans.kind == "unverified" and not ans.steps %}<p class="answer-problems">（模型沒有查詢任何資料）</p>{% endif %}
+{% if ans.kind == "error" %}<ul>{% for label, endpoint, anchor in ans.links %}<li><a href="{{ url_for(endpoint) }}">{{ label }}</a></li>{% endfor %}</ul>{% endif %}
+{% endif %}
+<details class="trace">
+    <summary>查詢軌跡</summary>
+    <p>{{ ans.trace|length }} 步，共 {{ ans.latency_ms }} ms，模型 {{ ans.model }}，編號 {{ ans.run_id }}</p>
+    <table>
+        <thead><tr><th>步驟</th><th>工具</th><th>輸入</th><th>結果</th><th class="num">耗時</th></tr></thead>
+        <tbody>
+        {% for t in ans.trace %}
+        <tr>
+            <td>{{ t.step }}</td><td>{{ t.tool or "" }}</td><td>{{ t.input }}</td>
+            <td>{% if t.decision %}{{ t.decision }}{% endif %}{% if t.output is not none %}<pre>{{ pretty(t.output) }}</pre>{% endif %}</td>
+            <td class="num">{% if t.latency_ms is not none %}{{ t.latency_ms }} ms{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p><a href="{{ url_for('agent_trace_run', tid=trace_task_id('assistant', ans.run_id, [ans.run_id])) }}">查看完整軌跡</a></p>
+    {% if legend %}
+    <p>代號對照（送給模型的只有左欄代號）：</p>
+    <table><tbody>{% for token, real in legend %}<tr><td>{{ token }}</td><td>{{ real }}</td></tr>{% endfor %}</tbody></table>
+    {% endif %}
+</details>

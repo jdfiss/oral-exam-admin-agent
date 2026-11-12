@@ -1,0 +1,54 @@
+{% extends "office_base.html" %}
+{% block title %}模擬寄件匣{% endblock %}
+{% block breadcrumb %}模擬寄件匣{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>模擬寄件匣</h1>
+        <p><b>這頁要做的事：</b>看系統寄出了哪些信（最新的在最上面，點一封信展開）。要扮演教授或委員回信：在該封信下方輸入內容，按「放入模擬收件匣」，再到「模擬時間與每日流程」頁按「執行本日流程」。</p>
+        <details class="page-more explain"><summary>更多說明</summary>
+            <p>{{ who }}模式不寄出任何真實信件：系統「本來會寄出」的每一封信都只記在這裡（補件通知、催件、附件4 確認信、委員個資索取、驗證碼、信箱 agent 經專員核准的回信）。模擬回信要等「模擬時間與每日流程」頁執行本日流程後，信箱 agent 與附件4 回信流程才會讀取。</p>
+        </details>
+    </div>
+</div>
+
+<div class="mail-list">
+    <h2 style="margin-bottom:10px;">本輪模擬寄出 <span class="total-count">{{ mails|length }}</span></h2>
+    <p class="footnote" style="margin:0 0 12px;">最新的在最上面，點一封展開。</p>
+    {% if not mails %}<p class="footnote">本輪還沒有寄出任何信。填寫期不寄信；請在「模擬時間與每日流程」頁推進日期後執行本日流程。</p>{% endif %}
+    {% for m in mails %}
+    {% set reps = replies.get(m.id, []) %}
+    <details class="mail-card" id="outbox-{{ m.id }}">
+        <summary>
+            <span class="outbox-line">
+                <span class="outbox-kind">{{ m.kind }}</span>
+                {% if m.version %}<span class="outbox-version {{ 'latest' if m.version == '最新版' else 'old' }}">{{ m.version }}</span>{% endif %}
+                {% if reps %}<span class="outbox-version old">對方已回信</span>{% endif %}
+                <b>{{ m.title }}</b>
+            </span>
+            <span class="outbox-meta">第 {{ m.no }} 封・給 {{ m.to }}・{{ m.at }}{% if m.attachments %}・附件 {{ m.attachments|length }} 份{% endif %}</span>
+        </summary>
+        <div class="mail-body">
+            <p style="margin:0 0 4px;"><b>主旨：</b>{{ m.subject }}</p>
+            <p class="footnote keep" style="margin:0 0 8px;">未實際寄出・收件人：{{ m.to }}{% if m.cc %}　副本：{{ m.cc }}{% endif %}{% if m.attachments %}　附件：{{ m.attachments|join('、') }}{% endif %}</p>
+            <pre style="white-space:pre-wrap;font:inherit;font-size:14px;margin:0;">{{ m.body }}</pre>
+            {% for r in reps %}
+            <p style="margin-top:10px;"><b>模擬回信</b>（寄件者 {{ r.from_addr }}，{{ '已由本日流程讀取' if r.delivered else '待下一次執行本日流程讀取' }}）：{{ r.reply_text }}</p>
+            {% endfor %}
+            <form method="post" action="{{ url_for('judge_outbox_reply') }}" style="margin-top:12px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="outbox_id" value="{{ m.id }}">
+                <label for="reply-{{ m.id }}"><b>模擬收件人回信</b></label>
+                <textarea id="reply-{{ m.id }}" name="text" rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:2px;font:inherit;" placeholder="例：確認無誤／可以，但口試日期請改成下週三／請問交通費怎麼算？"></textarea>
+                <div class="actions-inline" style="margin-top:6px;">
+                    <button type="submit">放入模擬收件匣</button>
+                    <details class="tiny-more" style="display:inline-block;margin:0 0 0 10px;"><summary>進階</summary>
+                        <label class="footnote keep"><input type="checkbox" name="stranger" value="1"> 改由未登記的寄件者（{{ stranger }}）寄出</label>
+                    </details>
+                </div>
+            </form>
+        </div>
+    </details>
+    {% endfor %}
+</div>
+{% endblock %}

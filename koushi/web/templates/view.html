@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}檢視口試補充資料 — {{ data.student_id }}{% endblock %}
+{% block content %}
+<h1>口試補充資料</h1>
+
+<div class="section">
+    <h2>學生基本資料</h2>
+    <table>
+        <tr><th style="width:120px;">學期</th><td>{{ data.term|term_label }}</td></tr>
+        <tr><th>學號</th><td>{{ data.student_id }}</td></tr>
+        <tr><th>Email</th><td>{{ data.student_email }}</td></tr>
+        <tr><th>指導教授</th><td>{% for name in data.advisors or [] %}{{ name }}{% if (data.advisor_emails or {}).get(name) %}（{{ data.advisor_emails[name] }}）{% endif %}{% if not loop.last %}、{% endif %}{% else %}（未填）{% endfor %}</td></tr>
+        <tr><th>論文題目</th><td>{{ data.thesis_title or '（未填）' }}</td></tr>
+    </table>
+</div>
+
+<div class="section">
+    <h2>口試資訊</h2>
+    <table>
+        <tr><th style="width:120px;">口試日期</th><td>{{ data.exam_date }}</td></tr>
+        <tr><th>開始時間</th><td>{{ data.exam_start_time or '（未填）' }}</td></tr>
+        <tr><th>結束時間</th><td>{{ data.exam_end_time or '（未填）' }}</td></tr>
+        <tr><th>口試地點</th><td>{{ data.exam_location or '（未填）' }}</td></tr>
+        <tr><th>口試方式</th><td>{{ data.exam_mode or '實體' }}</td></tr>
+    </table>
+</div>
+
+<div class="section">
+    <h2>口試委員（共 {{ data.committees|length }} 位）</h2>
+    {% for c in data.committees %}
+    <div class="committee-card">
+        <div class="card-header"><span>委員 {{ loop.index }}</span></div>
+        <table>
+            <tr><th style="width:120px;">姓名</th><td>{{ c.name }}</td></tr>
+            <tr><th>服務單位</th><td>{{ c.unit }}</td></tr>
+            <tr><th>職稱</th><td>{{ c.title or '（未填）' }}</td></tr>
+            <tr><th>Email</th><td>{{ c.email or '（未填）' }}</td></tr>
+        </table>
+    </div>
+    {% endfor %}
+</div>
+
+<div style="text-align:center; padding:20px 0;">
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="margin-right:12px;">返回</a>
+    {% if session.get('role') == 'student' %}
+    <a href="{{ url_for('form', term=data.term) }}" class="btn btn-primary">修改／補件</a>
+    {% endif %}
+</div>
+
+<p class="hint" style="text-align:center;">
+    第 {{ data.get('version', 1) }} 版 ｜ 送出時間：{{ data.submitted_at }}
+</p>
+{% endblock %}

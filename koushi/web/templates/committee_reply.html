@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}口試委員資料{% endblock %}
+{% block content %}
+<h1>口試委員{{ "資料" if req and req.id_only else "撥款資料" }}</h1>
+{% if req is none %}
+<div class="section"><p>此連結無效或已不需要填寫。如有疑問，請聯繫{{ office_name }}。</p></div>
+{% elif done %}
+<div class="section">
+    <p>{{ req.name }} 老師您好，我們已收到您的{{ "資料" if req.id_only else "撥款資料" }}，謝謝您。</p>
+    <p style="margin-top:8px;">如需更正，請直接聯繫{{ office_name }}；為保護個資，本頁不會顯示您填寫的內容。</p>
+</div>
+{% elif not verified %}
+<div class="section">
+    <p>{{ req.name }} 老師您好，請先驗證登記信箱。專屬連結有效七天，驗證碼有效十分鐘。</p>
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" name="action" value="send-code" class="btn btn-primary">{{ ("寄送驗證碼（" ~ who ~ "模式放入模擬寄件匣）") if judge_mode else "寄送驗證碼到登記信箱" }}</button>
+    </form>
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="code">信箱驗證碼</label>
+        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+        <button type="submit" name="action" value="verify-code" class="btn btn-primary">驗證並繼續填寫</button>
+    </form>
+</div>
+{% else %}
+<div class="section">
+    <p>{{ req.name }} 老師您好，感謝您擔任 {{ req.case_keys|length }} 場學位口試的委員{% if req.earliest_exam %}（最早一場 {{ req.earliest_exam }}）{% endif %}。</p>
+    {% if req.id_only %}<p style="margin-top:8px;">本系委員不需提供撥款資料；為建立口試委員資料，請填寫身分證字號。資料由系辦保管。</p>{% else %}<p style="margin-top:8px;">為辦理口試費撥款，請填寫以下資料。資料只供撥款使用，由系辦保管。</p>{% endif %}
+</div>
+<form method="POST" class="section">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for field in fields %}
+    <label class="required" for="f-{{ loop.index }}">{{ field }}{% if field == '金融機構' %}（含分行）{% endif %}</label>
+    <input type="text" id="f-{{ loop.index }}" name="{{ field }}" value="{{ (entered or {}).get(field, '') }}" required autocomplete="off">
+    {% if field in confirm_fields %}
+    <label class="required" for="c-{{ loop.index }}">再輸入一次{{ field }}</label>
+    <input type="text" id="c-{{ loop.index }}" name="{{ field }}_確認" required autocomplete="off">
+    {% endif %}
+    {% endfor %}
+    <label style="display:flex;gap:6px;align-items:center;font-weight:normal;margin-top:14px;">
+        <input type="checkbox" name="foreign_id" value="1" style="width:auto;" {{ "checked" if foreign_checked else "" }}>我沒有中華民國身分證或居留證（請於上方填護照號碼）
+    </label>
+    <div class="submit-area"><button type="submit" class="btn btn-primary">送出</button></div>
+</form>
+{% endif %}
+{% endblock %}
