@@ -92,7 +92,7 @@ OPENAI_API_KEY=sk-你的金鑰
 
 以下是系辦日常操作與正式部署說明。
 
-系辦現場試用：`powershell -ExecutionPolicy Bypass -File deploy\start-trial.ps1`。啟動前自動檢查，備妥教授改期與 AI 建議任務；使用獨立假資料、虛構範本與離線備援。系辦試用操作卡 有現場順序、預期結果與故障處理；只做準備檢查可加 `-Check`。
+系辦現場試用：`powershell -ExecutionPolicy Bypass -File deploy\start-trial.ps1`。啟動前自動檢查，備妥教授改期與 AI 建議任務；使用獨立假資料與虛構範本；只做準備檢查可加 `-Check`。
 
 業務規則以[已確認流程決策](docs/已確認流程決策.md)為準。架構唯一參照是[互動式模組關係圖](docs/module-map.html)。
 
@@ -167,4 +167,4 @@ powershell -File deploy\run-backup.ps1 -Dest D:\koushi-backup
 
 automate可接教授回信分類器與信箱agent。需GEMINI_API_KEY或OPENAI_API_KEY；教授不需確認附件4，「回信自動確認」只是把教授主動回覆的「確認無誤」記錄下來（預設關閉，須開啟、白名單且關閉shadow），不影響任何產檔或流程。不完整輸出、非逐字證據、保留意見、疑問、修改、附檔、舊版本、缺信件串或不可信／逾期收件時間均轉人工。真實模型與校方信箱須另行驗收。
 
-四個獨立假資料情境使用deploy/start-demo.ps1，見模擬展示操作與驗收。正式配置不得使用示範資料。過時文字已移至歷史README，不作為日常操作指引。
+四個獨立假資料情境使用deploy/start-demo.ps1。正式配置不得使用示範資料。
