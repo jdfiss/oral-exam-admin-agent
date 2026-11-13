@@ -25,3 +25,9 @@ os.environ["KOUSHI_NO_LOCAL_ENV"] = "1"
 for _key in ("OPENAI_API_KEY", "GEMINI_API_KEY", "OPENAI_BASE_URL", "KOUSHI_LLM_MODEL", "KOUSHI_LLM_PROVIDER",
              "KOUSHI_LLM_MIN_INTERVAL"):
     os.environ.pop(_key, None)
+
+# 剛下載的程式碼沒有附件4／附件6 範本（官方範本含真實資料不進 Git）：自動補虛構示範範本，
+# 不需 LibreOffice，也不必先跑 README 步驟 1，pytest 直接就能全過
+from koushi.demo_templates import use_demo_templates_if_missing  # noqa: E402
+
+use_demo_templates_if_missing()

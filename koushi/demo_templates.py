@@ -111,6 +111,17 @@ def ensure_demo_templates() -> list[str]:
     return messages
 
 
+def use_demo_templates_if_missing() -> list[str]:
+    """沒有官方附件4 .doc 時：補齊示範範本，並讓 config.TPL_ATT4 指向示範 .docx（不需 LibreOffice）。
+
+    給示範／評審模式啟動與測試用：評審漏跑 README 步驟 1 也不會卡在 .doc 轉檔。正式環境不呼叫。
+    """
+    messages = ensure_demo_templates()
+    if not Path(C.TPL_ATT4_OFFICIAL).is_file():
+        C.TPL_ATT4 = ATT4_DOCX
+    return messages
+
+
 def main() -> None:
     for line in ensure_demo_templates():
         print(line)

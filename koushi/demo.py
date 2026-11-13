@@ -241,6 +241,9 @@ def main():
     elif args.offline:
         os.environ["KOUSHI_LLM_PROVIDER"] = "offline"
     os.environ["KOUSHI_DEMO_ROOT"] = str(args.root.resolve())
+    # 沒有官方範本時自動補虛構示範範本（.docx，不需 LibreOffice）：漏跑 README 步驟 1 也能直接啟動
+    from .demo_templates import use_demo_templates_if_missing
+    use_demo_templates_if_missing()
     # Keep runtime conversion files in the isolated demo area.
     import tempfile
     temp = args.root / "temp"
