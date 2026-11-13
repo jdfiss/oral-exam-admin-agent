@@ -35,6 +35,7 @@ import secrets
 import sys
 import tempfile
 import time
+import threading
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from functools import wraps
@@ -42,7 +43,7 @@ from pathlib import Path
 
 from flask import (
     Flask, abort, render_template, request, redirect, url_for, flash, session,
-    send_file, send_from_directory, g,
+    send_file, send_from_directory, g, has_request_context,
 )
 
 from .. import ai_switch, clock, committee_verification, judge
@@ -146,7 +147,21 @@ def configure_app(flask_app: Flask, config: WebConfig) -> None:
 
 
 def cfg() -> WebConfig:
+    """目前請求的設定：公開評審環境的評審用自己的沙盒（見 _enter_judge_sandbox），其他人用全域設定。"""
+    if has_request_context():
+        sandbox = g.get("_web")
+        if sandbox is not None:
+            return sandbox
     return app.config["_web"]
+
+
+def _reload_web_config() -> None:
+    """重設情境後重新載入設定：沙盒只換自己的，不動全域設定。"""
+    from .. import demo
+    if has_request_context() and g.get("_web") is not None:
+        g._web = demo.web_config(g._web.demo_root)
+    else:
+        configure_app(app, demo.web_config(cfg().demo_root))
 
 
 configure_app(app, WebConfig.from_env())
@@ -396,6 +411,65 @@ def _judge_audit(action: str, **detail) -> None:
                      detail={"actor": judge.label(), **detail})
 
 
+_sandbox_locks: dict[str, threading.Lock] = {}
+_sandbox_locks_guard = threading.Lock()
+
+
+def _sandbox_lock(sandbox_id: str) -> threading.Lock:
+    with _sandbox_locks_guard:
+        return _sandbox_locks.setdefault(sandbox_id, threading.Lock())
+
+
+def _sandbox_enabled() -> bool:
+    base = app.config["_web"]
+    return bool(base.judge_mode and base.demo_root and judge.open_login())
+
+
+@app.before_request
+def _enter_judge_sandbox():
+    """公開評審環境：評審的請求改用自己的示範資料夾（設定與模擬時鐘都切過去，請求結束切回）。
+
+    設定放在 flask.g、時鐘資料夾放在 contextvar，都是每個請求各自一份，
+    所以伺服器可以多執行緒同時處理多位評審（見 deploy/judge_cloud.py）。
+    """
+    sandbox_id = session.get("judge_sandbox")
+    if not (sandbox_id and session.get("judge") and _sandbox_enabled()):
+        return None
+    from .. import demo
+    root = judge.sandbox_root(app.config["_web"].demo_root, sandbox_id)
+    if g.get("_sandbox_lock") is None:
+        # 不同評審可以同時進行；同一位評審（同一份沙盒）的請求依序處理，連按兩次不會同時寫同一份資料
+        lock = _sandbox_lock(sandbox_id)
+        lock.acquire()
+        g._sandbox_lock = lock
+    fresh = not (root / "active.json").is_file()
+    if fresh:  # 新評審，或伺服器重啟後沙盒不見了：重建一份
+        judge.cleanup_sandboxes(app.config["_web"].demo_root)
+        demo.initialize(root, judge.sandbox_scenario())
+        shared_templates = Path(app.config["_web"].demo_root) / "templates"  # 啟動時已轉好的附件4，不必每個沙盒再轉
+        if shared_templates.is_dir() and not (root / "templates").exists():
+            import shutil
+            shutil.copytree(shared_templates, root / "templates")
+    previous = g.pop("_clock_token", None)  # 同一請求切第二次（重新登入）：先還原，執行緒重用時才不會殘留
+    if previous is not None:
+        clock.reset_root(previous)
+    g._clock_token = clock.use_root(root)
+    g._web = demo.web_config(root)
+    if fresh:
+        _try_auto_build()
+    return None
+
+
+@app.teardown_request
+def _leave_judge_sandbox(exc=None):
+    token = g.pop("_clock_token", None)
+    if token is not None:
+        clock.reset_root(token)
+    lock = g.pop("_sandbox_lock", None)
+    if lock is not None:
+        lock.release()
+
+
 @app.before_request
 def _judge_guard():
     if not _is_judge():
@@ -537,7 +611,8 @@ def login_judge():
     if not cfg().judge_mode or not judge.login_enabled():
         abort(404)
     password = request.form.get("password", "")
-    if not secrets.compare_digest(password.encode(), (cfg().judge_password or "").encode()):
+    if not judge.open_login() and not secrets.compare_digest(password.encode(),
+                                                             (cfg().judge_password or "").encode()):
         _judge_audit("login_failed")
         flash("密碼錯誤", "error")
         return redirect(url_for("login"))
@@ -546,8 +621,11 @@ def login_judge():
     session.update(role="office", judge=True, handler=judge.label())
     if csrf:
         session[_CSRF_SESSION_KEY] = csrf
+    if _sandbox_enabled():  # 公開評審環境：這位評審拿一份自己的示範資料
+        session["judge_sandbox"] = secrets.token_hex(8)
+        _enter_judge_sandbox()
     _judge_audit("login")
-    return redirect(url_for("office_overview"))
+    return redirect(url_for("office_guide"))  # 評審進來先看試用導覽
 
 
 @app.route("/logout")
@@ -2043,7 +2121,8 @@ def demo_context():
 @app.context_processor
 def judge_context():
     context = {"judge_mode": cfg().judge_mode, "is_judge": _is_judge(), "judge_banner": judge.banner(),
-               "who": judge.label(), "judge_login": cfg().judge_mode and judge.login_enabled()}
+               "who": judge.label(), "judge_login": cfg().judge_mode and judge.login_enabled(),
+               "judge_open": judge.open_login()}
     if cfg().judge_mode:
         context["judge_model"] = _llm.describe_active_model(cfg().state_dir)
     return context
@@ -2147,7 +2226,7 @@ def office_demo():
         try:
             if action == "reset":
                 demo.initialize(cfg().demo_root, request.form.get("scenario", "normal"))
-                configure_app(app, demo.web_config(cfg().demo_root))
+                _reload_web_config()
                 if not _is_judge():  # 評審的處理人固定為「評審」
                     session.pop("handler", None)
                 _try_auto_build()
@@ -2490,6 +2569,15 @@ def agent_trace_export(tid):
                                   mimetype="application/json; charset=utf-8")
     response.headers["Content-Disposition"] = f'attachment; filename="agent-trace-{tid}.json"'
     return response
+
+
+@app.route("/office/guide")
+@login_required(role="office")
+def office_guide():
+    """評審試用導覽：只在評審模式存在（建議的試用順序，連到各頁）；一般系辦介面沒有這頁。"""
+    if not cfg().judge_mode or not judge.login_enabled():  # 系辦假資料試用（koushi.trial）也沒有
+        abort(404)
+    return render_template("office_guide.html", active_page="guide")
 
 
 @app.route("/office/flow")

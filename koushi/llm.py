@@ -329,6 +329,75 @@ def describe_active_model(state_dir=None) -> str:
     return f"{conf['model']}（{conf['provider']}）"
 
 
+DAILY_CAP_ENV = "KOUSHI_LLM_DAILY_CAP"
+_cap_lock = threading.Lock()
+_cap_state = {"day": None, "count": 0}
+
+
+def daily_cap() -> int | None:
+    """KOUSHI_LLM_DAILY_CAP：每天最多幾次真模型呼叫（公開的評審環境防額度被刷光）；未設定或 ≤0 不限。"""
+    raw = (os.environ.get(DAILY_CAP_ENV) or "").strip()
+    try:
+        cap = int(raw) if raw else 0
+    except ValueError:
+        return None
+    return cap if cap > 0 else None
+
+
+def reset_daily_cap() -> None:
+    with _cap_lock:
+        _cap_state.update(day=None, count=0)
+
+
+class DailyCapLLM:
+    """包住真模型：當天（伺服器時區）呼叫次數到上限後改用離線備援，網站照常可用、不再花額度。
+
+    計數在本行程記憶體，行程重啟歸零（上限是防濫用，不是精確計費）。
+    model／last_usage／last_attempts 取自本次實際使用的模型，軌跡會如實標示「離線備援」。
+    """
+
+    def __init__(self, inner, cap: int, *, today=None):
+        from datetime import date
+        self.inner, self.cap = inner, cap
+        self._today = today or date.today
+        self._active = inner
+        self._offline = None
+
+    def _take_slot(self) -> bool:
+        with _cap_lock:
+            day = self._today()
+            if _cap_state["day"] != day:
+                _cap_state.update(day=day, count=0)
+            if _cap_state["count"] >= self.cap:
+                return False
+            _cap_state["count"] += 1
+            return True
+
+    def complete_json(self, system: str, user: str, *, schema_name: str) -> dict:
+        if self._take_slot():
+            self._active = self.inner
+        else:
+            if self._offline is None:
+                from .offline_llm import make_offline_llm
+                self._offline = make_offline_llm()
+            self._active = self._offline
+        return self._active.complete_json(system, user, schema_name=schema_name)
+
+    @property
+    def model(self):
+        return model_name(self._active) or (OFFLINE_LABEL if self._active is self._offline else None)
+
+    model_name = model
+
+    @property
+    def last_usage(self):
+        return getattr(self._active, "last_usage", None)
+
+    @property
+    def last_attempts(self):
+        return getattr(self._active, "last_attempts", [])
+
+
 def make_llm(state_dir=None) -> StructuredLLM | None:
     """依環境變數建立 LLM；沒有任何 API key 或 AI 總開關已關閉時回傳 None。"""
     from .ai_switch import is_disabled
@@ -347,4 +416,6 @@ def make_llm(state_dir=None) -> StructuredLLM | None:
     fallback = (OpenAIStructuredLLM(api_key=second["api_key"], model=second["model"], base_url=second["base_url"],
                                     timeout=cloud_timeout())
                 if second else None)
-    return ResilientLLM(primary, fallback)
+    llm = ResilientLLM(primary, fallback)
+    cap = daily_cap()
+    return DailyCapLLM(llm, cap) if cap else llm

@@ -28,7 +28,7 @@
         {% if demo_info or judge_mode %}
         <div class="nav-group">模擬工具（假資料）</div>
         {% if demo_info %}{{ nav_link('demo', 'office_demo', '模擬時間與每日流程') }}{% endif %}
-        {% if judge_mode %}{{ nav_link('judge_outbox', 'judge_outbox', '模擬寄件匣') }}{% endif %}
+        {% if judge_mode %}{{ nav_link('judge_outbox', 'judge_outbox', '模擬寄件匣') }}{% if judge_login %}{{ nav_link('guide', 'office_guide', who ~ '試用導覽') }}{% endif %}{% endif %}
         {% endif %}
         <details class="nav-more"{% if active_page in ('import', 'communications', 'agent_trace', 'agent_metrics', 'archives') %} open{% endif %}>
             <summary>更多（較少用）</summary>

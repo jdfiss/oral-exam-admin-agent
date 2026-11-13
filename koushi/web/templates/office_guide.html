@@ -1,0 +1,58 @@
+{% extends "office_base.html" %}
+{% block title %}{{ who }}試用導覽{% endblock %}
+{% block breadcrumb %}{{ who }}試用導覽{% endblock %}
+{% block extra_head %}
+<style>
+.guide-steps{list-style:none;margin:0;padding:0;counter-reset:step}
+.guide-steps li{counter-increment:step;display:grid;grid-template-columns:32px minmax(0,1fr);gap:4px 12px;padding:14px 0;border-top:1px solid var(--line, #E3E6EA)}
+.guide-steps li:first-child{border-top:0}
+.guide-steps li::before{content:counter(step);grid-row:span 2;width:28px;height:28px;border-radius:50%;background:#1B2430;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px}
+.guide-steps a{font-weight:600}
+.guide-steps p{margin:0;color:var(--muted, #5B6472);font-size:14px}
+.guide-note{font-size:13px;color:var(--muted, #5B6472)}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-heading"><div><h1>{{ who }}試用導覽</h1><p>建議的試用順序，走一遍約 5 分鐘。左側選單「模擬工具」裡隨時可以回來。</p></div></div>
+
+<div class="case-section">
+    <div class="section-heading"><h2>您看到的是什麼</h2></div>
+    <p>這是<b>系辦專員實際使用的同一套頁面的受保護版本</b>：頁面、AI 流程與人工關卡都和正式版相同，只多了以下保護——</p>
+    <ul>
+        <li>全部是示範假資料，不連接任何校務系統。{% if judge_open %}每位{{ who }}進來都有自己獨立的一份，重設情境、AI 緊急停止都只影響自己，可以放心全部試。{% endif %}</li>
+        <li>系統要寄的信只進「模擬寄件匣」，不會寄出任何真實信件。</li>
+        <li>匯出案件清單、修改 AI 設定等操作在伺服器端關閉（會顯示 403）。</li>
+        <li>每個操作都寫入稽核紀錄，處理人記為「{{ who }}」。</li>
+    </ul>
+    <p class="guide-note">「{{ who }}試用導覽」「模擬時間與每日流程」「模擬寄件匣」這三頁是試用專用，正式版沒有。</p>
+</div>
+
+{% if demo_info %}
+<div class="case-section" style="border-color:#f0d69b;">
+    <div class="section-heading"><h2>先讓系統跑一天（模擬環境）</h2></div>
+    <p>這是假資料的模擬環境。到「<a href="{{ url_for('office_demo') }}">模擬時間與每日流程</a>」按「推進一天」，再按「執行本日流程」：系統會像正式上線時每天自動做的那樣，寄出提醒、讀回信、產生 AI 建議。做完再照下面的順序看結果。</p>
+    {% if judge_mode %}<p class="guide-note">寄出的信都在「<a href="{{ url_for('judge_outbox') }}">模擬寄件匣</a>」，不會真的寄出；也可以在那裡模擬學生或教授回信（包括夾帶指令的可疑信），再執行一次本日流程，看 AI 怎麼處理。</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="case-section">
+    <div class="section-heading"><h2>每天的工作順序</h2></div>
+    <ol class="guide-steps">
+        <li><a href="{{ url_for('office_overview') }}">工作總覽</a><p>每天先看這裡。待辦清單列出需要你處理的事，案件表看每位學生到哪一步、缺什麼。</p></li>
+        <li><a href="{{ url_for('office_mailbox') }}">來信處理</a><p>AI 已讀過學生、教授的來信並判讀意圖；需要回覆的已擬好草稿，<b>你核准才會寄出</b>。</p></li>
+        <li><a href="{{ url_for('office_ai_proposals') }}">AI 建議</a><p>AI 從來信判讀出的變更（例如改期、換委員）。你決定採用或退回；退回不會改動任何資料。</p></li>
+        {% if assistant_nav %}<li><a href="{{ url_for('office_assistant') }}">問答助理</a><p>用一句話查案件，例如「還有哪些缺件？」。回答附查詢步驟，可以對照原始資料。</p></li>{% endif %}
+        <li><a href="{{ url_for('office_documents') }}">文件中心</a><p>資料齊全後產生附件4（口試一覽）、附件6（口試費清冊）。</p></li>
+        <li><a href="{{ url_for('office_agent_trace') }}">AI 處理紀錄</a><p>每次 AI 判斷看了什麼、用了哪些工具、結論是什麼，都留有紀錄可查。</p></li>
+    </ol>
+</div>
+
+<div class="case-section">
+    <div class="section-heading"><h2>需要時才用</h2></div>
+    <ul>
+        <li><a href="{{ url_for('office_ai_settings') }}">AI 開關</a>：覺得 AI 判斷不對勁，可以一鍵停用，全部改回人工處理。</li>
+        <li><a href="{{ url_for('office_settings_page') }}">期限設定</a>、<a href="{{ url_for('office_import') }}">匯入資料</a>：學期開始時設定期限、匯入 Portal 名單。</li>
+        <li><a href="{{ url_for('office_flow') }}">流程圖</a>：一學期完整流程，以及每一步出狀況時怎麼處理。</li>
+    </ul>
+</div>
+{% endblock %}

@@ -42,6 +42,58 @@ def login_enabled() -> bool:
     return os.environ.get("KOUSHI_JUDGE_LOGIN", "1").strip() != "0"
 
 
+OPEN_ENV = "KOUSHI_JUDGE_OPEN"
+
+
+def open_login() -> bool:
+    """KOUSHI_JUDGE_OPEN=1：評審入口免密碼（公開的評審測試環境用）。
+
+    評審模式本身就是沙盒（示範資料、不寄信、伺服器端白名單、全程稽核），密碼保護不到真實資料；
+    交件文件又不能放密碼，所以線上環境改成一鍵進入。系辦登入仍要密碼。
+    """
+    return os.environ.get(OPEN_ENV, "").strip() == "1"
+
+
+# ── 公開評審環境：每位評審一份獨立的示範資料（沙盒）──────────────
+# 免密碼入口代表多位評審同時使用；共用一份資料時，一人重設情境或按 AI 緊急停止，別人的畫面就跟著變。
+# 所以每次按「進入評審試用」都建一份自己的示範資料夾，重設、AI 開關、推進日期都只影響自己。
+SANDBOX_MAX_AGE_HOURS = 48
+SANDBOX_MAX_COUNT = 300
+
+
+def sandbox_dir(base_root: str | Path) -> Path:
+    base = Path(base_root).resolve()
+    return base.parent / f"{base.name}-sandboxes"
+
+
+def sandbox_root(base_root: str | Path, sandbox_id: str) -> Path:
+    if not sandbox_id.isalnum() or len(sandbox_id) > 32:
+        raise ValueError("沙盒代號格式錯誤")
+    return sandbox_dir(base_root) / sandbox_id
+
+
+def sandbox_scenario() -> str:
+    return os.environ.get("JUDGE_SCENARIO", "ai")
+
+
+def cleanup_sandboxes(base_root: str | Path, *, now: float | None = None) -> int:
+    """刪掉超過 SANDBOX_MAX_AGE_HOURS 的沙盒，數量仍超過上限時從最舊的刪。回傳刪除數。"""
+    import shutil
+    import time
+    folder = sandbox_dir(base_root)
+    if not folder.is_dir():
+        return 0
+    now = time.time() if now is None else now
+    boxes = sorted((p for p in folder.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime)
+    doomed = [p for p in boxes if now - p.stat().st_mtime > SANDBOX_MAX_AGE_HOURS * 3600]
+    rest = [p for p in boxes if p not in doomed]
+    doomed += rest[:max(0, len(rest) - SANDBOX_MAX_COUNT + 1)]  # 留一個位子給即將建立的新沙盒
+    for p in doomed:
+        if (p / "demo-root.json").is_file():  # 只刪有展示標記的資料夾
+            shutil.rmtree(p, ignore_errors=True)
+    return len(doomed)
+
+
 def banner() -> str:
     return BANNER.replace(ACTOR, label(), 1)
 OUTBOX_FILE = "judge_outbox.json"
