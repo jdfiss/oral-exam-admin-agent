@@ -1,4 +1,4 @@
-﻿# 每日自動化：給 Windows 工作排程器呼叫（見 docs/部署與上線操作手冊.md）。
+﻿# 每日自動化：給 Windows 工作排程器呼叫（排程註冊見 deploy/register-tasks.ps1）。
 #
 # 等同手動執行 `python -m koushi automate --send`，另外：
 #   - 讀專案根目錄 .env（寄信帳號、KOUSHI_PUBLIC_URL 等）

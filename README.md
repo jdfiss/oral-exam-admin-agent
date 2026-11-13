@@ -106,7 +106,7 @@ OPENAI_API_KEY=sk-你的金鑰
 
 系辦現場試用：`powershell -ExecutionPolicy Bypass -File deploy\start-trial.ps1`。啟動前自動檢查，備妥教授改期與 AI 建議任務；使用獨立假資料與虛構範本；只做準備檢查可加 `-Check`。
 
-業務規則以[已確認流程決策](docs/已確認流程決策.md)為準。架構唯一參照是[互動式模組關係圖](docs/module-map.html)。
+業務規則以[已確認流程決策](docs/已確認流程決策.md)為準。架構見[技術文件](docs/技術文件.md)。
 
 架構、Agentic 層、模型、環境變數、權限與已知限制見[技術文件](docs/技術文件.md)。終端機展示：`python -m show`（只看 agent 段落加 `--agents`，預設離線備援模型）；評審模式：`python -m koushi.demo judge`（見[評審模式](docs/評審模式.md)）。
 
@@ -135,7 +135,7 @@ python -m venv .venv
 - KOUSHI_WEB_SECRET_KEY、KOUSHI_OFFICE_PASSWORD、KOUSHI_PUBLIC_URL：固定服務金鑰、正式密碼、HTTPS網址。
 - MAIL_SENDER、MAIL_PASSWORD及必要的MAIL_IMAP_HOST：核准的郵件帳號。
 
-正式腳本設定KOUSHI_ENV=production，拒絕mockdata及混用示範配置。[正式個資保護方案確認書](docs/正式個資保護方案確認書.md)供校方確認ACL、加密、金鑰恢復及保留範圍；本機測試不能代替正式環境驗收。
+正式腳本設定KOUSHI_ENV=production，拒絕mockdata及混用示範配置。正式環境的ACL、加密、金鑰恢復及保留範圍須另與校方確認；本機測試不能代替正式環境驗收。
 
 ~~~powershell
 powershell -File deploy\start-web.ps1
